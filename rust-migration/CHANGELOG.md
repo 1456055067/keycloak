@@ -46,6 +46,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - kc-protocol-oidc: PKCE support with CodeChallengeMethod (S256, plain)
 - kc-protocol-oidc: Token exchange support (RFC 8693)
 - kc-protocol-oidc: Device authorization flow types (RFC 8628)
+- kc-protocol-oidc: OpenID Provider Metadata (ProviderMetadata, ProviderMetadataBuilder)
+- kc-protocol-oidc: JSON Web Key Set types (JsonWebKey, JsonWebKeySet, JwksBuilder)
+- kc-protocol-oidc: Axum HTTP endpoint handlers module
+- kc-protocol-oidc: Discovery endpoint handler (GET /.well-known/openid-configuration)
+- kc-protocol-oidc: JWKS endpoint handler (GET /certs)
+- kc-protocol-oidc: Token endpoint handler (POST /token) with all grant types
+- kc-protocol-oidc: UserInfo endpoint handler (GET/POST /userinfo)
+- kc-protocol-oidc: Introspection endpoint handler (POST /token/introspect, RFC 7662)
+- kc-protocol-oidc: Revocation endpoint handler (POST /revoke, RFC 7009)
+- kc-protocol-oidc: RealmProvider trait for pluggable realm data access
+- kc-protocol-oidc: OidcState for shared Axum state management
+- kc-protocol-oidc: oidc_router() function for complete OIDC router configuration
 - GitHub Actions CI workflow (.github/workflows/ci.yml)
 - Pre-commit hooks script (scripts/pre-commit)
 - Cargo audit configuration (.cargo/audit.toml)

@@ -203,12 +203,18 @@ impl FlowContext<states::InProgress> {
 ### Deliverables
 
 - ⬜ Authorization endpoint (code, implicit, hybrid flows)
-- ⬜ Token endpoint (authorization_code, client_credentials, refresh_token, password)
-- ⬜ UserInfo endpoint
-- ⬜ Introspection and revocation endpoints
-- ⬜ Well-known configuration and JWKS endpoints
+- ✅ Token endpoint handler (authorization_code, client_credentials, refresh_token, password, device_code, token_exchange)
+- ✅ UserInfo endpoint handler (GET/POST)
+- ✅ Introspection endpoint handler (RFC 7662)
+- ✅ Revocation endpoint handler (RFC 7009)
+- ✅ Well-known configuration endpoint (OpenID Provider Metadata)
+- ✅ JWKS endpoint (JSON Web Key Set)
 - ✅ PKCE support (required for public clients)
 - ✅ Token Manager (access, ID, refresh tokens)
+- ✅ Discovery module (ProviderMetadata, ProviderMetadataBuilder)
+- ✅ JWKS module (JsonWebKey, JsonWebKeySet, JwksBuilder, KeyType, EcCurve)
+- ✅ Axum endpoints module with oidc_router() function
+- ✅ RealmProvider trait for pluggable realm data access
 - ⬜ Protocol mappers SPI
 
 ### Axum Router Structure

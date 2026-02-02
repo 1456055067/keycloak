@@ -17,7 +17,10 @@
 //! ## Modules
 //!
 //! - [`claims`] - JWT claim types for access, ID, and refresh tokens
+//! - [`discovery`] - `OpenID` Provider Metadata for `.well-known` endpoint
+//! - [`endpoints`] - Axum HTTP handlers for OIDC endpoints
 //! - [`error`] - OIDC error types following RFC 6749
+//! - [`jwks`] - JSON Web Key Set types for `/certs` endpoint
 //! - [`request`] - Request types for OIDC endpoints
 //! - [`token`] - Token manager for creating and validating tokens
 //! - [`types`] - Common OIDC types (grant types, response modes, etc.)
@@ -27,14 +30,19 @@
 #![deny(missing_docs)]
 
 pub mod claims;
+pub mod discovery;
+pub mod endpoints;
 pub mod error;
+pub mod jwks;
 pub mod request;
 pub mod token;
 pub mod types;
 
 // Re-export commonly used types
 pub use claims::{AccessTokenClaims, IdTokenClaims, RefreshTokenClaims};
+pub use discovery::{ProviderMetadata, ProviderMetadataBuilder};
 pub use error::{ErrorResponse, OidcError, OidcResult};
+pub use jwks::{EcCurve, JsonWebKey, JsonWebKeySet, JwksBuilder, KeyType};
 pub use request::{
     AuthorizationRequest, DeviceAuthorizationRequest, DeviceTokenRequest, EndSessionRequest,
     IntrospectionRequest, RevocationRequest, TokenRequest, UserInfoRequest,
