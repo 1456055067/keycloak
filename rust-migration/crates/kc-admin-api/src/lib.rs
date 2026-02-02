@@ -91,6 +91,20 @@
 //! | GET | `/admin/realms/{realm}/clients/{id}/roles/{role-name}` | Get client role by name |
 //! | PUT | `/admin/realms/{realm}/clients/{id}/roles/{role-name}` | Update a client role |
 //! | DELETE | `/admin/realms/{realm}/clients/{id}/roles/{role-name}` | Delete a client role |
+//!
+//! ### Groups
+//!
+//! | Method | Path | Description |
+//! |--------|------|-------------|
+//! | GET | `/admin/realms/{realm}/groups` | List/search groups |
+//! | POST | `/admin/realms/{realm}/groups` | Create a top-level group |
+//! | GET | `/admin/realms/{realm}/groups/count` | Count groups in realm |
+//! | GET | `/admin/realms/{realm}/groups/{id}` | Get group by ID |
+//! | PUT | `/admin/realms/{realm}/groups/{id}` | Update a group |
+//! | DELETE | `/admin/realms/{realm}/groups/{id}` | Delete a group |
+//! | GET | `/admin/realms/{realm}/groups/{id}/children` | Get child groups |
+//! | POST | `/admin/realms/{realm}/groups/{id}/children` | Create a child group |
+//! | GET | `/admin/realms/{realm}/groups/{id}/members` | Get group members |
 
 #![forbid(unsafe_code)]
 #![deny(warnings)]
@@ -104,14 +118,15 @@ pub mod state;
 // Re-export commonly used types
 pub use dto::{
     ClientRepresentation, ClientSearchParams, ClientSecretResponse, ClientSummary,
-    CompositeRolesRequest, CreateClientRequest, CreateRealmRequest, CreateRoleRequest,
-    CreateUserRequest, RealmRepresentation, RealmSummary, RoleRepresentation, RoleSearchParams,
-    UpdateClientRequest, UpdateRealmRequest, UpdateRoleRequest, UpdateUserRequest,
+    CompositeRolesRequest, CreateClientRequest, CreateGroupRequest, CreateRealmRequest,
+    CreateRoleRequest, CreateUserRequest, GroupMemberCount, GroupRepresentation, GroupSearchParams,
+    RealmRepresentation, RealmSummary, RoleRepresentation, RoleSearchParams, UpdateClientRequest,
+    UpdateGroupRequest, UpdateRealmRequest, UpdateRoleRequest, UpdateUserRequest,
     UserRepresentation, UserSearchParams,
 };
 pub use error::{AdminError, AdminResult, ErrorResponse};
 pub use router::{
-    admin_client_router, admin_role_router, admin_router, client_role_router, client_router,
-    realm_role_router, realm_router, user_router,
+    admin_client_router, admin_group_router, admin_role_router, admin_router, client_role_router,
+    client_router, group_router, realm_role_router, realm_router, user_router,
 };
-pub use state::{AdminState, ClientState, RealmState, RoleState, UserState};
+pub use state::{AdminState, ClientState, GroupState, RealmState, RoleState, UserState};

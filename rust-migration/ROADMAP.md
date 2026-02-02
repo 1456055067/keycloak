@@ -258,7 +258,7 @@ pub fn oidc_router() -> Router<AppState> {
 - ✅ User CRUD endpoints (list/search, create, get, update, delete)
 - ✅ Client CRUD endpoints (list/search, create, get, update, delete, client-secret)
 - ✅ Role CRUD endpoints (realm roles, client roles, composite roles)
-- ⬜ Group CRUD endpoints
+- ✅ Group CRUD endpoints (list/search, create, get, update, delete, children, members)
 - ⬜ Permission/authorization system
 - ⬜ Event logging
 - ⬜ Import/export (JSON format)
@@ -300,6 +300,16 @@ POST   /admin/realms/{realm}/clients/{id}/roles              - Create client rol
 GET    /admin/realms/{realm}/clients/{id}/roles/{role-name}  - Get client role
 PUT    /admin/realms/{realm}/clients/{id}/roles/{role-name}  - Update client role
 DELETE /admin/realms/{realm}/clients/{id}/roles/{role-name}  - Delete client role
+
+GET    /admin/realms/{realm}/groups                  - List/search groups
+POST   /admin/realms/{realm}/groups                  - Create top-level group
+GET    /admin/realms/{realm}/groups/count            - Count groups in realm
+GET    /admin/realms/{realm}/groups/{id}             - Get group by ID
+PUT    /admin/realms/{realm}/groups/{id}             - Update group
+DELETE /admin/realms/{realm}/groups/{id}             - Delete group
+GET    /admin/realms/{realm}/groups/{id}/children    - Get child groups
+POST   /admin/realms/{realm}/groups/{id}/children    - Create child group
+GET    /admin/realms/{realm}/groups/{id}/members     - Get group members
 ```
 
 ### Java Files to Reference

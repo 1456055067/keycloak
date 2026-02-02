@@ -5,6 +5,7 @@
 //! without affecting internal structures.
 
 pub mod client;
+pub mod group;
 pub mod realm;
 pub mod role;
 pub mod user;
@@ -12,6 +13,10 @@ pub mod user;
 pub use client::{
     ClientRepresentation, ClientSearchParams, ClientSecretResponse, ClientSummary,
     CreateClientRequest, UpdateClientRequest,
+};
+pub use group::{
+    CreateGroupRequest, GroupMemberCount, GroupRepresentation, GroupSearchParams,
+    UpdateGroupRequest,
 };
 pub use realm::{
     CreateRealmRequest, RealmRepresentation, RealmSummary, UpdateRealmRequest,

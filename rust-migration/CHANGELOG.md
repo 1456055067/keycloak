@@ -89,6 +89,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - kc-admin-api: Client role CRUD endpoints (GET/POST /admin/realms/{realm}/clients/{id}/roles, GET/PUT/DELETE /admin/realms/{realm}/clients/{id}/roles/{role-name})
 - kc-admin-api: Role search with query parameters (search, pagination)
 - kc-admin-api: admin_router(), admin_client_router(), admin_role_router(), realm_router(), user_router(), client_router(), realm_role_router(), client_role_router() for modular router composition
+- kc-admin-api: Group CRUD endpoints (GET/POST /admin/realms/{realm}/groups, GET/PUT/DELETE /admin/realms/{realm}/groups/{id})
+- kc-admin-api: Group hierarchy endpoints (GET/POST /admin/realms/{realm}/groups/{id}/children)
+- kc-admin-api: Group members endpoint (GET /admin/realms/{realm}/groups/{id}/members)
+- kc-admin-api: Group count endpoint (GET /admin/realms/{realm}/groups/count)
+- kc-admin-api: Group search with query parameters (search, exact, topLevelOnly, pagination)
+- kc-admin-api: admin_group_router(), group_router() for modular group router composition
 - kc-crypto: generate_client_secret() for OAuth 2.0 confidential client secrets
 - GitHub Actions CI workflow (.github/workflows/ci.yml)
 - Pre-commit hooks script (scripts/pre-commit)

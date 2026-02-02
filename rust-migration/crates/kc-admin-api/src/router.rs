@@ -9,16 +9,19 @@ use axum::{
     response::IntoResponse,
     routing::{delete, get, post, put},
 };
-use kc_storage::{ClientProvider, CredentialProvider, RealmProvider, RoleProvider, UserProvider};
+use kc_storage::{
+    ClientProvider, CredentialProvider, GroupProvider, RealmProvider, RoleProvider, UserProvider,
+};
 
 use crate::dto::{
     ClientRepresentation, ClientSearchParams, ClientSecretResponse, CreateClientRequest,
-    CreateRealmRequest, CreateRoleRequest, CreateUserRequest, RealmRepresentation, RealmSummary,
-    RoleRepresentation, RoleSearchParams, UpdateClientRequest, UpdateRealmRequest,
-    UpdateRoleRequest, UpdateUserRequest, UserRepresentation, UserSearchParams,
+    CreateGroupRequest, CreateRealmRequest, CreateRoleRequest, CreateUserRequest,
+    GroupMemberCount, GroupRepresentation, GroupSearchParams, RealmRepresentation, RealmSummary,
+    RoleRepresentation, RoleSearchParams, UpdateClientRequest, UpdateGroupRequest,
+    UpdateRealmRequest, UpdateRoleRequest, UpdateUserRequest, UserRepresentation, UserSearchParams,
 };
 use crate::error::{AdminError, AdminResult};
-use crate::state::{ClientState, RoleState, UserState};
+use crate::state::{ClientState, GroupState, RoleState, UserState};
 
 // ============================================================================
 // Realm Handlers
@@ -1190,6 +1193,353 @@ where
 }
 
 // ============================================================================
+// Group Handlers
+// ============================================================================
+
+/// GET /admin/realms/{realm}/groups - List groups
+async fn get_groups<R, G>(
+    State(state): State<GroupState<R, G>>,
+    Path(realm_name): Path<String>,
+    Query(params): Query<GroupSearchParams>,
+) -> AdminResult<Json<Vec<GroupRepresentation>>>
+where
+    R: RealmProvider,
+    G: GroupProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Search groups
+    let criteria = params.into_criteria();
+    let groups = state.group_provider.search(realm.id, &criteria).await?;
+
+    // Convert to representations with paths
+    let mut representations = Vec::new();
+    for group in groups {
+        let path = state
+            .group_provider
+            .get_path(realm.id, group.id)
+            .await
+            .unwrap_or_else(|_| format!("/{}", group.name));
+        representations.push(GroupRepresentation::from(group).with_path(path));
+    }
+
+    Ok(Json(representations))
+}
+
+/// POST /admin/realms/{realm}/groups - Create a top-level group
+async fn create_group<R, G>(
+    State(state): State<GroupState<R, G>>,
+    Path(realm_name): Path<String>,
+    Json(request): Json<CreateGroupRequest>,
+) -> AdminResult<impl IntoResponse>
+where
+    R: RealmProvider,
+    G: GroupProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Validate group name
+    if request.name.is_empty() {
+        return Err(AdminError::Validation(
+            "Group name cannot be empty".to_string(),
+        ));
+    }
+
+    // Convert to domain model
+    let group = request.into_group(realm.id);
+    let group_id = group.id;
+    let group_name = group.name.clone();
+
+    // Create the group
+    state.group_provider.create(&group).await.map_err(|e| {
+        if e.is_duplicate() {
+            AdminError::conflict("Group", "name", &group_name)
+        } else {
+            AdminError::from(e)
+        }
+    })?;
+
+    // Return 201 Created with Location header
+    Ok((
+        StatusCode::CREATED,
+        [(
+            "Location",
+            format!("/admin/realms/{}/groups/{}", realm_name, group_id),
+        )],
+    ))
+}
+
+/// GET /admin/realms/{realm}/groups/{id} - Get group by ID
+async fn get_group<R, G>(
+    State(state): State<GroupState<R, G>>,
+    Path((realm_name, group_id)): Path<(String, uuid::Uuid)>,
+) -> AdminResult<Json<GroupRepresentation>>
+where
+    R: RealmProvider,
+    G: GroupProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Get group
+    let group = state
+        .group_provider
+        .get_by_id(realm.id, group_id)
+        .await?
+        .ok_or_else(|| AdminError::not_found_id("Group", group_id))?;
+
+    // Get path
+    let path = state
+        .group_provider
+        .get_path(realm.id, group_id)
+        .await
+        .unwrap_or_else(|_| format!("/{}", group.name));
+
+    Ok(Json(GroupRepresentation::from(group).with_path(path)))
+}
+
+/// PUT /admin/realms/{realm}/groups/{id} - Update a group
+async fn update_group<R, G>(
+    State(state): State<GroupState<R, G>>,
+    Path((realm_name, group_id)): Path<(String, uuid::Uuid)>,
+    Json(request): Json<UpdateGroupRequest>,
+) -> AdminResult<impl IntoResponse>
+where
+    R: RealmProvider,
+    G: GroupProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Get existing group
+    let mut group = state
+        .group_provider
+        .get_by_id(realm.id, group_id)
+        .await?
+        .ok_or_else(|| AdminError::not_found_id("Group", group_id))?;
+
+    // Apply updates
+    request.apply_to(&mut group);
+
+    // Save updates
+    state.group_provider.update(&group).await?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// DELETE /admin/realms/{realm}/groups/{id} - Delete a group
+async fn delete_group<R, G>(
+    State(state): State<GroupState<R, G>>,
+    Path((realm_name, group_id)): Path<(String, uuid::Uuid)>,
+) -> AdminResult<impl IntoResponse>
+where
+    R: RealmProvider,
+    G: GroupProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Verify group exists
+    if state
+        .group_provider
+        .get_by_id(realm.id, group_id)
+        .await?
+        .is_none()
+    {
+        return Err(AdminError::not_found_id("Group", group_id));
+    }
+
+    // Delete the group (and its children)
+    state.group_provider.delete(realm.id, group_id).await?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// GET /admin/realms/{realm}/groups/{id}/children - Get child groups
+async fn get_group_children<R, G>(
+    State(state): State<GroupState<R, G>>,
+    Path((realm_name, group_id)): Path<(String, uuid::Uuid)>,
+) -> AdminResult<Json<Vec<GroupRepresentation>>>
+where
+    R: RealmProvider,
+    G: GroupProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Verify parent group exists
+    if state
+        .group_provider
+        .get_by_id(realm.id, group_id)
+        .await?
+        .is_none()
+    {
+        return Err(AdminError::not_found_id("Group", group_id));
+    }
+
+    // Get children
+    let children = state
+        .group_provider
+        .list_children(realm.id, group_id)
+        .await?;
+
+    // Convert to representations with paths
+    let mut representations = Vec::new();
+    for child in children {
+        let path = state
+            .group_provider
+            .get_path(realm.id, child.id)
+            .await
+            .unwrap_or_else(|_| format!("/{}", child.name));
+        representations.push(GroupRepresentation::from(child).with_path(path));
+    }
+
+    Ok(Json(representations))
+}
+
+/// POST /admin/realms/{realm}/groups/{id}/children - Create a child group
+async fn create_child_group<R, G>(
+    State(state): State<GroupState<R, G>>,
+    Path((realm_name, parent_id)): Path<(String, uuid::Uuid)>,
+    Json(request): Json<CreateGroupRequest>,
+) -> AdminResult<impl IntoResponse>
+where
+    R: RealmProvider,
+    G: GroupProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Verify parent group exists
+    if state
+        .group_provider
+        .get_by_id(realm.id, parent_id)
+        .await?
+        .is_none()
+    {
+        return Err(AdminError::not_found_id("Group", parent_id));
+    }
+
+    // Validate group name
+    if request.name.is_empty() {
+        return Err(AdminError::Validation(
+            "Group name cannot be empty".to_string(),
+        ));
+    }
+
+    // Convert to domain model
+    let group = request.into_child_group(realm.id, parent_id);
+    let group_id = group.id;
+    let group_name = group.name.clone();
+
+    // Create the group
+    state.group_provider.create(&group).await.map_err(|e| {
+        if e.is_duplicate() {
+            AdminError::conflict("Group", "name", &group_name)
+        } else {
+            AdminError::from(e)
+        }
+    })?;
+
+    // Return 201 Created with Location header
+    Ok((
+        StatusCode::CREATED,
+        [(
+            "Location",
+            format!("/admin/realms/{}/groups/{}", realm_name, group_id),
+        )],
+    ))
+}
+
+/// GET /admin/realms/{realm}/groups/{id}/members - Get group members
+async fn get_group_members<R, G>(
+    State(state): State<GroupState<R, G>>,
+    Path((realm_name, group_id)): Path<(String, uuid::Uuid)>,
+    Query(params): Query<GroupSearchParams>,
+) -> AdminResult<Json<Vec<uuid::Uuid>>>
+where
+    R: RealmProvider,
+    G: GroupProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Verify group exists
+    if state
+        .group_provider
+        .get_by_id(realm.id, group_id)
+        .await?
+        .is_none()
+    {
+        return Err(AdminError::not_found_id("Group", group_id));
+    }
+
+    // Get members
+    let members = state
+        .group_provider
+        .get_members(realm.id, group_id, params.max, params.first)
+        .await?;
+
+    Ok(Json(members))
+}
+
+/// GET /admin/realms/{realm}/groups/count - Count groups
+async fn count_groups<R, G>(
+    State(state): State<GroupState<R, G>>,
+    Path(realm_name): Path<String>,
+) -> AdminResult<Json<GroupMemberCount>>
+where
+    R: RealmProvider,
+    G: GroupProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Count groups
+    let count = state.group_provider.count(realm.id).await?;
+
+    Ok(Json(GroupMemberCount { count }))
+}
+
+// ============================================================================
 // Router Construction
 // ============================================================================
 
@@ -1552,4 +1902,103 @@ where
         .route("/{role_name}", get(get_client_role::<R, C, Ro>))
         .route("/{role_name}", put(update_client_role::<R, C, Ro>))
         .route("/{role_name}", delete(delete_client_role::<R, C, Ro>))
+}
+
+/// Creates the Admin API router for group operations.
+///
+/// # Routes
+///
+/// ## Groups
+/// - `GET /admin/realms/{realm}/groups` - List/search groups
+/// - `POST /admin/realms/{realm}/groups` - Create a top-level group
+/// - `GET /admin/realms/{realm}/groups/count` - Count groups in realm
+/// - `GET /admin/realms/{realm}/groups/{id}` - Get group by ID
+/// - `PUT /admin/realms/{realm}/groups/{id}` - Update a group
+/// - `DELETE /admin/realms/{realm}/groups/{id}` - Delete a group
+/// - `GET /admin/realms/{realm}/groups/{id}/children` - Get child groups
+/// - `POST /admin/realms/{realm}/groups/{id}/children` - Create a child group
+/// - `GET /admin/realms/{realm}/groups/{id}/members` - Get group members
+///
+/// # Example
+///
+/// ```ignore
+/// use kc_admin_api::{admin_group_router, GroupState};
+/// use std::sync::Arc;
+///
+/// let state = GroupState::new(
+///     Arc::new(realm_provider),
+///     Arc::new(group_provider),
+/// );
+///
+/// let app = admin_group_router().with_state(state);
+/// ```
+pub fn admin_group_router<R, G>() -> Router<GroupState<R, G>>
+where
+    R: RealmProvider + 'static,
+    G: GroupProvider + 'static,
+{
+    Router::new()
+        .route("/admin/realms/{realm}/groups", get(get_groups::<R, G>))
+        .route("/admin/realms/{realm}/groups", post(create_group::<R, G>))
+        .route(
+            "/admin/realms/{realm}/groups/count",
+            get(count_groups::<R, G>),
+        )
+        .route(
+            "/admin/realms/{realm}/groups/{group_id}",
+            get(get_group::<R, G>),
+        )
+        .route(
+            "/admin/realms/{realm}/groups/{group_id}",
+            put(update_group::<R, G>),
+        )
+        .route(
+            "/admin/realms/{realm}/groups/{group_id}",
+            delete(delete_group::<R, G>),
+        )
+        .route(
+            "/admin/realms/{realm}/groups/{group_id}/children",
+            get(get_group_children::<R, G>),
+        )
+        .route(
+            "/admin/realms/{realm}/groups/{group_id}/children",
+            post(create_child_group::<R, G>),
+        )
+        .route(
+            "/admin/realms/{realm}/groups/{group_id}/members",
+            get(get_group_members::<R, G>),
+        )
+}
+
+/// Creates a standalone group router (for modular composition).
+///
+/// Note: This router expects to be nested under a path that includes the realm,
+/// e.g., `/admin/realms/{realm}/groups`.
+///
+/// # Routes
+///
+/// - `GET /` - List/search groups
+/// - `POST /` - Create a top-level group
+/// - `GET /count` - Count groups in realm
+/// - `GET /{id}` - Get group by ID
+/// - `PUT /{id}` - Update a group
+/// - `DELETE /{id}` - Delete a group
+/// - `GET /{id}/children` - Get child groups
+/// - `POST /{id}/children` - Create a child group
+/// - `GET /{id}/members` - Get group members
+pub fn group_router<R, G>() -> Router<GroupState<R, G>>
+where
+    R: RealmProvider + 'static,
+    G: GroupProvider + 'static,
+{
+    Router::new()
+        .route("/", get(get_groups::<R, G>))
+        .route("/", post(create_group::<R, G>))
+        .route("/count", get(count_groups::<R, G>))
+        .route("/{group_id}", get(get_group::<R, G>))
+        .route("/{group_id}", put(update_group::<R, G>))
+        .route("/{group_id}", delete(delete_group::<R, G>))
+        .route("/{group_id}/children", get(get_group_children::<R, G>))
+        .route("/{group_id}/children", post(create_child_group::<R, G>))
+        .route("/{group_id}/members", get(get_group_members::<R, G>))
 }

@@ -252,3 +252,42 @@ where
         }
     }
 }
+
+/// State for group operations (requires realm context).
+pub struct GroupState<R, G>
+where
+    R: RealmProvider,
+    G: GroupProvider,
+{
+    /// Realm storage provider (for realm validation).
+    pub realm_provider: Arc<R>,
+    /// Group storage provider.
+    pub group_provider: Arc<G>,
+}
+
+impl<R, G> Clone for GroupState<R, G>
+where
+    R: RealmProvider,
+    G: GroupProvider,
+{
+    fn clone(&self) -> Self {
+        Self {
+            realm_provider: Arc::clone(&self.realm_provider),
+            group_provider: Arc::clone(&self.group_provider),
+        }
+    }
+}
+
+impl<R, G> GroupState<R, G>
+where
+    R: RealmProvider,
+    G: GroupProvider,
+{
+    /// Creates a new group state.
+    pub fn new(realm_provider: Arc<R>, group_provider: Arc<G>) -> Self {
+        Self {
+            realm_provider,
+            group_provider,
+        }
+    }
+}
