@@ -1,0 +1,39 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+
+- Initial project structure and workspace configuration
+- ROADMAP.md with phased migration plan
+- CONTRIBUTING.md with development standards and rules
+- NIST 800-53 Rev5 control mapping documentation
+- Cargo workspace with 16 crates (kc-core, kc-crypto, kc-spi, kc-model, etc.)
+- kc-core: Configuration system, error types, and event logging with NIST AU-2/AU-3 compliance
+- kc-crypto: CNSA 2.0 compliant cryptographic algorithms (ES384, ES512, PS384, PS512, RS384, RS512)
+- kc-crypto: SHA-384 and SHA-512 hashing (SHA-256 forbidden per CNSA 2.0)
+- kc-spi: Provider and ProviderFactory traits for extensibility
+- kc-spi: SPI Registry for dynamic provider lookup
+- kc-spi: KeycloakSession for request-scoped operations
+- GitHub Actions CI workflow (.github/workflows/ci.yml)
+- Pre-commit hooks script (scripts/pre-commit)
+- Cargo audit configuration (.cargo/audit.toml)
+
+### Security
+
+- Established security-first development guidelines
+- Mandated cargo audit for all commits
+- CNSA 2.0 compliance enforced: NO ES256, RS256, PS256, SHA-256, P-256 curves
+- Minimum key sizes: RSA 3072-bit, EC P-384
+- Ignored RUSTSEC-2023-0071 (rsa crate via unused sqlx-mysql transitive dependency)
+
+---
+
+## Version History
+
+[Unreleased]: https://github.com/org/keycloak-rs/compare/v0.1.0...HEAD

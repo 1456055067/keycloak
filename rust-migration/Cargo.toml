@@ -1,0 +1,142 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/kc-core",
+    "crates/kc-crypto",
+    "crates/kc-spi",
+    "crates/kc-model",
+    "crates/kc-storage",
+    "crates/kc-storage-sql",
+    "crates/kc-cache",
+    "crates/kc-cache-redis",
+    "crates/kc-session",
+    "crates/kc-auth",
+    "crates/kc-protocol-oidc",
+    "crates/kc-federation",
+    "crates/kc-federation-ldap",
+    "crates/kc-admin-api",
+    "crates/kc-server",
+    "crates/kc-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.92"
+license = "Apache-2.0"
+repository = "https://github.com/keycloak/keycloak-rs"
+authors = ["Keycloak Rust Team"]
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1.43", features = ["full"] }
+async-trait = "0.1"
+futures = "0.3"
+
+# Web framework
+axum = { version = "0.8", features = ["macros"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = [
+    "cors",
+    "trace",
+    "compression-gzip",
+] }
+hyper = { version = "1.6", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.9"
+
+# Database
+sqlx = { version = "0.8", default-features = false, features = [
+    "runtime-tokio",
+    "postgres",
+    "uuid",
+    "chrono",
+    "json",
+] }
+
+# Caching
+fred = { version = "10.0", features = ["enable-rustls"] }
+
+# Cryptography
+aws-lc-rs = "1.12"
+jsonwebtoken = "10.3"
+argon2 = "0.5"
+rand = "0.9"
+base64 = "0.22"
+
+# LDAP
+ldap3 = "0.12"
+
+# Logging and tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Error handling
+thiserror = "2.0"
+anyhow = "1.0"
+
+# Configuration
+config = "0.15"
+dotenvy = "0.15"
+
+# Utilities
+uuid = { version = "1.11", features = ["v4", "v7", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+url = "2.5"
+derive_more = { version = "2", features = ["display", "from", "error"] }
+parking_lot = "0.12"
+dashmap = "6.1"
+
+# Testing
+tokio-test = "0.4"
+testcontainers = "0.26"
+wiremock = "0.6"
+proptest = "1.6"
+
+# Internal crates
+kc-core = { path = "crates/kc-core" }
+kc-crypto = { path = "crates/kc-crypto" }
+kc-spi = { path = "crates/kc-spi" }
+kc-model = { path = "crates/kc-model" }
+kc-storage = { path = "crates/kc-storage" }
+kc-storage-sql = { path = "crates/kc-storage-sql" }
+kc-cache = { path = "crates/kc-cache" }
+kc-cache-redis = { path = "crates/kc-cache-redis" }
+kc-session = { path = "crates/kc-session" }
+kc-auth = { path = "crates/kc-auth" }
+kc-protocol-oidc = { path = "crates/kc-protocol-oidc" }
+kc-federation = { path = "crates/kc-federation" }
+kc-federation-ldap = { path = "crates/kc-federation-ldap" }
+kc-admin-api = { path = "crates/kc-admin-api" }
+kc-server = { path = "crates/kc-server" }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+rust_2024_compatibility = { level = "warn", priority = -1 }
+
+[workspace.lints.clippy]
+# Lint groups with lower priority so individual allows take precedence
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
+# Allow some lints that are too noisy or unavoidable with transitive deps
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+multiple_crate_versions = "allow"  # Transitive dependencies may cause this
+cargo_common_metadata = "allow"    # Not publishing to crates.io yet
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.dev]
+debug = true
