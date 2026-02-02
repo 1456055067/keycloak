@@ -56,11 +56,7 @@ pub trait RevocationCacheProvider: Send + Sync {
     ) -> CacheResult<()>;
 
     /// Gets the "not-before" timestamp for a user.
-    async fn get_user_not_before(
-        &self,
-        realm_id: &str,
-        user_id: &str,
-    ) -> CacheResult<Option<i64>>;
+    async fn get_user_not_before(&self, realm_id: &str, user_id: &str) -> CacheResult<Option<i64>>;
 
     /// Clears all revocation data for a realm.
     async fn clear_realm_revocations(&self, realm_id: &str) -> CacheResult<()>;

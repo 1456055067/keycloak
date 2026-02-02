@@ -24,8 +24,11 @@ pub trait SessionCacheProvider: Send + Sync {
     ) -> CacheResult<()>;
 
     /// Gets a user session.
-    async fn get_user_session(&self, realm_id: &str, session_id: &str)
-        -> CacheResult<Option<Vec<u8>>>;
+    async fn get_user_session(
+        &self,
+        realm_id: &str,
+        session_id: &str,
+    ) -> CacheResult<Option<Vec<u8>>>;
 
     /// Deletes a user session.
     async fn delete_user_session(&self, realm_id: &str, session_id: &str) -> CacheResult<()>;

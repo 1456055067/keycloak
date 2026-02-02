@@ -74,12 +74,8 @@ pub trait LoginFailureCacheProvider: Send + Sync {
     async fn is_ip_blocked(&self, realm_id: &str, ip_address: &str) -> CacheResult<bool>;
 
     /// Sets a temporary lockout for a user.
-    async fn lock_user(
-        &self,
-        realm_id: &str,
-        user_id: &str,
-        duration: Duration,
-    ) -> CacheResult<()>;
+    async fn lock_user(&self, realm_id: &str, user_id: &str, duration: Duration)
+    -> CacheResult<()>;
 
     /// Sets a temporary block for an IP address.
     async fn block_ip(

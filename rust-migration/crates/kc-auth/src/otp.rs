@@ -234,12 +234,22 @@ impl OtpVerifier {
             .map_err(|e| AuthError::Internal(e.to_string()))?;
 
         let counter = now.as_secs() / u64::from(config.period);
-        Ok(Self::generate_hotp(secret, counter, config.digits, config.algorithm))
+        Ok(Self::generate_hotp(
+            secret,
+            counter,
+            config.digits,
+            config.algorithm,
+        ))
     }
 
     /// Generates an HOTP code for a counter.
     #[must_use]
-    pub fn generate_hotp(secret: &[u8], counter: u64, digits: u8, algorithm: OtpAlgorithm) -> String {
+    pub fn generate_hotp(
+        secret: &[u8],
+        counter: u64,
+        digits: u8,
+        algorithm: OtpAlgorithm,
+    ) -> String {
         let hmac = Self::compute_hmac(secret, counter, algorithm);
         let code = Self::truncate(&hmac, digits);
         format!("{:0width$}", code, width = digits as usize)

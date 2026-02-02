@@ -48,6 +48,6 @@ pub mod password;
 
 pub use authenticator::{AuthContext, Authenticator, AuthenticatorFactory, AuthenticatorResult};
 pub use error::{AuthError, AuthResult};
-pub use flow::{states, AuthenticatedResult, FlowContext, RequiredActionResult};
+pub use flow::{AuthenticatedResult, FlowContext, RequiredActionResult, states};
 pub use otp::{HotpConfig, OtpAlgorithm, OtpVerifier, TotpConfig};
 pub use password::{PasswordHasherService, PasswordPolicy};

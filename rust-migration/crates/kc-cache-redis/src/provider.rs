@@ -11,7 +11,7 @@ use kc_cache::{
     AtomicCacheProvider, CacheError, CacheProvider, CacheResult, HashCacheProvider,
     SetCacheProvider,
 };
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 
 use crate::config::RedisConfig;
 use crate::error::{from_redis_error, from_serde_error};
@@ -115,13 +115,7 @@ impl CacheProvider for RedisCacheProvider {
             Some(duration) => {
                 let seconds = seconds_to_i64(duration.as_secs().max(1));
                 self.client
-                    .set::<(), _, _>(
-                        &key,
-                        serialized,
-                        Some(Expiration::EX(seconds)),
-                        None,
-                        false,
-                    )
+                    .set::<(), _, _>(&key, serialized, Some(Expiration::EX(seconds)), None, false)
                     .await
                     .map_err(from_redis_error)
             }
@@ -300,11 +294,8 @@ impl HashCacheProvider for RedisCacheProvider {
         T: DeserializeOwned + Send,
     {
         let key = self.key(key);
-        let values: std::collections::HashMap<String, String> = self
-            .client
-            .hgetall(&key)
-            .await
-            .map_err(from_redis_error)?;
+        let values: std::collections::HashMap<String, String> =
+            self.client.hgetall(&key).await.map_err(from_redis_error)?;
 
         let mut result = Vec::with_capacity(values.len());
         for (field, value) in values {
