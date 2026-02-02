@@ -23,4 +23,4 @@ pub mod hash;
 pub mod signature;
 
 pub use algorithm::{HashAlgorithm, SignatureAlgorithm};
-pub use hash::{hmac_sha1, hmac_sha256, hmac_sha384, hmac_sha512, sha384, sha512};
+pub use hash::{hmac_sha1, hmac_sha256, hmac_sha384, hmac_sha512, sha256, sha384, sha512};

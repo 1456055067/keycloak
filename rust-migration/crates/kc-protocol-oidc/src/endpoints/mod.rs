@@ -22,7 +22,9 @@
 //! ```
 
 mod authorization;
+pub mod client_auth;
 mod discovery;
+pub mod grants;
 mod introspection;
 mod revocation;
 mod router;
@@ -32,6 +34,17 @@ mod userinfo;
 
 // Re-export types from authorization module
 pub use authorization::{AuthorizationCode, AuthorizationResponse};
+
+// Re-export grant types
+pub use grants::{
+    AuthCodeStore, AuthenticatedClient, AuthenticatedUser, AuthorizationCodeGrant,
+    ClientAuthMethod, ClientAuthenticator, ClientCredentialsGrant, GrantContext, GrantResult,
+    InMemoryAuthCodeStore, PasswordGrant, PkceVerifier, RefreshTokenGrant, StoredAuthCode,
+    UserAuthenticator,
+};
+
+// Re-export client auth types
+pub use client_auth::{extract_credentials, StorageClientAuthenticator, CLIENT_ASSERTION_TYPE_JWT};
 
 // Re-export the router and state
 pub use router::oidc_router;

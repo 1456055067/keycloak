@@ -65,3 +65,14 @@ pub use mapper::{
     AudienceMapper, ClientRoleMapper, GroupMembershipMapper, HardcodedClaimMapper,
     RealmRoleMapper, UserAttributeMapper, UserPropertyMapper,
 };
+
+// Re-export grant handler types
+pub use endpoints::{
+    AuthCodeStore, AuthenticatedClient, AuthenticatedUser, AuthorizationCodeGrant,
+    ClientAuthMethod, ClientAuthenticator, ClientCredentialsGrant, GrantContext, GrantResult,
+    InMemoryAuthCodeStore, PasswordGrant, PkceVerifier, RefreshTokenGrant, StoredAuthCode,
+    UserAuthenticator,
+    // Client authentication
+    extract_credentials, StorageClientAuthenticator, CLIENT_ASSERTION_TYPE_JWT,
+};
+pub use endpoints::grants::AuthCodeParams;

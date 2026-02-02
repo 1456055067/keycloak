@@ -43,6 +43,29 @@ pub fn sha512(data: &[u8]) -> Vec<u8> {
 }
 
 // =============================================================================
+// SHA-256 for Protocol Compatibility
+// =============================================================================
+//
+// SHA-256 is provided for OAuth/OIDC protocol compatibility requirements:
+// - PKCE (RFC 7636) specifies S256 as SHA-256
+// - Token hashing in OIDC (`at_hash`, `c_hash`) may use SHA-256
+// This should NOT be used for general-purpose cryptographic operations.
+
+/// Computes SHA-256 hash for OAuth/OIDC protocol compatibility.
+///
+/// # Warning
+///
+/// SHA-256 does not meet CNSA 2.0 requirements. This function exists for:
+/// - PKCE S256 code challenge (RFC 7636)
+/// - OIDC token hash claims (`at_hash`, `c_hash`)
+///
+/// For new cryptographic operations, use [`sha384`] or [`sha512`].
+#[must_use]
+pub fn sha256(data: &[u8]) -> Vec<u8> {
+    digest::digest(&digest::SHA256, data).as_ref().to_vec()
+}
+
+// =============================================================================
 // HMAC Functions for OTP Compatibility
 // =============================================================================
 //
