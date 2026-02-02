@@ -63,7 +63,7 @@ fred = { version = "10.0", features = ["enable-rustls"] }
 # Cryptography
 aws-lc-rs = "1.12"
 jsonwebtoken = "10.3"
-argon2 = "0.5"
+argon2 = { version = "0.5", features = ["std", "rand"] }
 rand = "0.9"
 base64 = "0.22"
 
