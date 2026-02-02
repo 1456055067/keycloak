@@ -61,3 +61,11 @@ pub use userinfo::{
     AddressClaim, UserInfoData, UserInfoEndpointState, UserInfoProvider, UserInfoResponse,
     userinfo_get_with_provider, userinfo_post_with_provider,
 };
+
+// Re-export introspection endpoint types and handlers
+pub use introspection::{IntrospectionEndpointState, introspect_with_auth};
+
+// Re-export revocation endpoint types and handlers
+pub use revocation::{
+    InMemoryTokenBlocklist, RevocationEndpointState, TokenBlocklist, revoke_with_blocklist,
+};

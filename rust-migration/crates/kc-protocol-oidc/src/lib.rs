@@ -84,4 +84,8 @@ pub use endpoints::{
     // UserInfo endpoint types and handlers
     AddressClaim, UserInfoData, UserInfoEndpointState, UserInfoProvider, UserInfoResponse,
     userinfo_get_with_provider, userinfo_post_with_provider,
+    // Introspection endpoint types and handlers
+    IntrospectionEndpointState, introspect_with_auth,
+    // Revocation endpoint types and handlers
+    InMemoryTokenBlocklist, RevocationEndpointState, TokenBlocklist, revoke_with_blocklist,
 };
