@@ -1,0 +1,40 @@
+[package]
+name = "kc-storage-sql"
+description = "SQLx-based storage implementation for Keycloak Rust"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+kc-core = { workspace = true }
+kc-model = { workspace = true }
+kc-storage = { workspace = true }
+kc-spi = { workspace = true }
+
+# Async
+async-trait = { workspace = true }
+tokio = { workspace = true }
+
+# Database
+sqlx = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Utilities
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio-test = { workspace = true }
+testcontainers = { workspace = true }
+
+[lints]
+workspace = true

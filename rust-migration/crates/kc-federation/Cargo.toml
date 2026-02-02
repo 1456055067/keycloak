@@ -1,0 +1,28 @@
+[package]
+name = "kc-federation"
+description = "User federation framework for Keycloak Rust"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+kc-core = { workspace = true }
+kc-model = { workspace = true }
+kc-spi = { workspace = true }
+kc-storage = { workspace = true }
+
+# Async
+async-trait = { workspace = true }
+tokio = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio-test = { workspace = true }
+
+[lints]
+workspace = true

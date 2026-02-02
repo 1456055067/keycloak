@@ -1,0 +1,41 @@
+[package]
+name = "kc-auth"
+description = "Authentication engine for Keycloak Rust"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+kc-core = { workspace = true }
+kc-crypto = { workspace = true }
+kc-model = { workspace = true }
+kc-spi = { workspace = true }
+kc-session = { workspace = true }
+
+# Async
+async-trait = { workspace = true }
+tokio = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Password hashing
+argon2 = { workspace = true }
+
+# Utilities
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio-test = { workspace = true }
+proptest = { workspace = true }
+
+[lints]
+workspace = true

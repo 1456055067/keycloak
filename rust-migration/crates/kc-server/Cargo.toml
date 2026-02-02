@@ -1,0 +1,54 @@
+[package]
+name = "kc-server"
+description = "Main Axum server for Keycloak Rust"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "keycloak"
+path = "src/main.rs"
+
+[dependencies]
+kc-core = { workspace = true }
+kc-crypto = { workspace = true }
+kc-spi = { workspace = true }
+kc-model = { workspace = true }
+kc-storage = { workspace = true }
+kc-storage-sql = { workspace = true }
+kc-cache = { workspace = true }
+kc-cache-redis = { workspace = true }
+kc-session = { workspace = true }
+kc-auth = { workspace = true }
+kc-protocol-oidc = { workspace = true }
+kc-federation = { workspace = true }
+kc-federation-ldap = { workspace = true }
+kc-admin-api = { workspace = true }
+
+# Async
+tokio = { workspace = true }
+
+# Web
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+hyper = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# Configuration
+dotenvy = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+
+[dev-dependencies]
+tokio-test = { workspace = true }
+
+[lints]
+workspace = true
