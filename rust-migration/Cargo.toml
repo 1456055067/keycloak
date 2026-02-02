@@ -87,6 +87,7 @@ dotenvy = "0.15"
 uuid = { version = "1.11", features = ["v4", "v7", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 url = "2.5"
+hex = "0.4"
 derive_more = { version = "2", features = ["display", "from", "error"] }
 parking_lot = "0.12"
 dashmap = "6.1"

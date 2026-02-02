@@ -24,8 +24,16 @@ ldap3 = { workspace = true }
 # Serialization
 serde = { workspace = true }
 
+# Utilities
+uuid = { workspace = true }
+chrono = { workspace = true }
+hex = { workspace = true }
+
 # Error handling
 thiserror = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
 
 [dev-dependencies]
 tokio-test = { workspace = true }

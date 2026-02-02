@@ -107,6 +107,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - kc-protocol-oidc: apply_userinfo_mappers() and apply_introspection_mappers() registry methods
 - kc-core: Additional admin event types (RoleCreated/Updated/Deleted, GroupCreated/Updated/Deleted, etc.)
 - kc-crypto: generate_client_secret() for OAuth 2.0 confidential client secrets
+- kc-federation: Federation framework for external identity stores
+- kc-federation: UserStorageProvider trait for user lookup and management
+- kc-federation: CredentialValidator trait for password validation delegation
+- kc-federation: FederationMapper trait for attribute mapping between systems
+- kc-federation: ImportSynchronization trait for bulk import/sync operations
+- kc-federation: FederationConfig with EditMode (ReadOnly, Writable, Unsynced)
+- kc-federation: AttributeMapper, GroupMapper, RoleMapper traits
+- kc-federation: Built-in mappers (UserAttributeMapper, FullNameMapper)
+- kc-federation: SyncResult, SyncError, SyncScheduleConfig for synchronization tracking
+- kc-federation-ldap: LDAP user federation provider using ldap3 crate
+- kc-federation-ldap: **LDAPS-only enforcement** (no STARTTLS, no plain LDAP for security)
+- kc-federation-ldap: LdapStorageProvider implementing UserStorageProvider and CredentialValidator
+- kc-federation-ldap: LdapConfig with vendor presets (ActiveDirectory, OpenLDAP, RHDS, Oracle, IBM)
+- kc-federation-ldap: LdapConnectionPool for managed connection pooling
+- kc-federation-ldap: LdapSearcher for user search operations with proper escaping
+- kc-federation-ldap: LdapUserAttributeMapper for mapping LDAP attributes to Keycloak users
+- kc-federation-ldap: LdapGroupMapper for extracting group membership from memberOf
+- kc-federation-ldap: LdapRoleMapper for role assignments with prefix stripping
+- kc-federation-ldap: Password validation via LDAPS bind (credentials never logged)
+- kc-federation-ldap: Full and changed synchronization support
+- kc-federation-ldap: Active Directory GUID binary format support
 - GitHub Actions CI workflow (.github/workflows/ci.yml)
 - Pre-commit hooks script (scripts/pre-commit)
 - Cargo audit configuration (.cargo/audit.toml)
@@ -118,6 +139,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CNSA 2.0 compliance enforced: NO ES256, RS256, PS256, SHA-256, P-256 curves
 - Minimum key sizes: RSA 3072-bit, EC P-384
 - Ignored RUSTSEC-2023-0071 (rsa crate via unused sqlx-mysql transitive dependency)
+- kc-federation-ldap: LDAPS-only enforcement (STARTTLS and plain LDAP rejected at configuration time)
+- kc-federation-ldap: LDAP passwords never logged, connections discarded after auth bind
 
 ---
 
