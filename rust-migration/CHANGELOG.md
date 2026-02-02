@@ -20,6 +20,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - kc-spi: Provider and ProviderFactory traits for extensibility
 - kc-spi: SPI Registry for dynamic provider lookup
 - kc-spi: KeycloakSession for request-scoped operations
+- kc-model: Complete domain models (User, Realm, Client, Group, Role, Credential)
+- kc-storage: Storage provider traits (RealmProvider, UserProvider, ClientProvider, RoleProvider, GroupProvider, CredentialProvider)
+- kc-storage: Search criteria types for paginated queries
+- kc-session: User session and client session management
+- kc-session: Session state machine with proper lifecycle
+- kc-cache: Cache abstraction traits (CacheProvider, CacheEntry)
+- kc-cache-redis: Redis implementation using fred crate
+- kc-auth: Authentication flow engine with type-safe state machine
+- kc-auth: Built-in authenticators (UsernamePassword, OTP)
+- kc-auth: Required actions framework
+- kc-storage-sql: Complete PostgreSQL implementation with SQLx
+- kc-storage-sql: All six provider implementations (realm, user, client, role, group, credential)
+- kc-storage-sql: Connection pool management with configurable limits
+- kc-storage-sql: Entity-to-model conversion utilities
+- migrations: Initial PostgreSQL schema (20240101000000_initial_schema.sql)
+- migrations: 25+ tables including realms, users, clients, roles, groups, credentials, sessions, events
+- migrations: Proper foreign key constraints and indexes
+- migrations: Automatic updated_at trigger function
 - GitHub Actions CI workflow (.github/workflows/ci.yml)
 - Pre-commit hooks script (scripts/pre-commit)
 - Cargo audit configuration (.cargo/audit.toml)
