@@ -1,0 +1,39 @@
+#!/bin/bash
+# Pre-commit hook for Keycloak Rust
+# Per CONTRIBUTING.md rules 5, 6, 7
+
+set -e
+
+echo "🔍 Running pre-commit checks..."
+
+# Change to the rust-migration directory
+cd "$(git rev-parse --show-toplevel)/rust-migration"
+
+# Rule 6: Always run Cargo fmt before commits
+echo "📝 Running cargo fmt..."
+cargo fmt --all --check
+if [ $? -ne 0 ]; then
+    echo "❌ cargo fmt check failed. Run 'cargo fmt --all' to fix."
+    exit 1
+fi
+echo "✅ cargo fmt passed"
+
+# Rule 5: Always run Cargo Clippy before commits
+echo "🔎 Running cargo clippy..."
+cargo clippy --all-targets --all-features -- -D warnings
+if [ $? -ne 0 ]; then
+    echo "❌ cargo clippy failed. Fix the warnings before committing."
+    exit 1
+fi
+echo "✅ cargo clippy passed"
+
+# Rule 7: Always run Cargo audit before commits
+echo "🔒 Running cargo audit..."
+cargo audit
+if [ $? -ne 0 ]; then
+    echo "❌ cargo audit found vulnerabilities. Update dependencies before committing."
+    exit 1
+fi
+echo "✅ cargo audit passed"
+
+echo "🎉 All pre-commit checks passed!"
