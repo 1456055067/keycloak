@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Error - {{ realm_name }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="logo">
+        <h1>Keycloak</h1>
+        <div class="subtitle">Identity and Access Management</div>
+    </div>
+
+    <div class="realm-name">
+        {{ realm_name }}
+    </div>
+
+    <div class="error-message">
+        <strong>{{ error }}</strong>
+        {% if let Some(desc) = error_description %}
+        <p style="margin-top: 8px;">{{ desc }}</p>
+        {% endif %}
+    </div>
+
+    {% if let Some(redirect) = redirect_uri %}
+    <a href="{{ redirect }}" class="btn btn-primary" style="display: block; text-align: center; text-decoration: none;">
+        Return to Application
+    </a>
+    {% else %}
+    <a href="/" class="btn btn-primary" style="display: block; text-align: center; text-decoration: none;">
+        Go to Home
+    </a>
+    {% endif %}
+</div>
+{% endblock %}

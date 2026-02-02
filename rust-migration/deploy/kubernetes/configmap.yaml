@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-config
+  namespace: keycloak
+  labels:
+    app.kubernetes.io/name: keycloak
+    app.kubernetes.io/component: config
+data:
+  # Server configuration
+  KC_HOST: "0.0.0.0"
+  KC_PORT: "8080"
+
+  # Database connection pool
+  KC_DB_MIN_CONNECTIONS: "2"
+  KC_DB_MAX_CONNECTIONS: "20"
+
+  # Token lifespans (seconds)
+  KC_ACCESS_TOKEN_LIFESPAN: "300"
+  KC_REFRESH_TOKEN_LIFESPAN: "1800"
+  KC_ID_TOKEN_LIFESPAN: "300"
+  KC_AUTH_CODE_LIFESPAN: "60"
+
+  # Session timeouts (seconds)
+  KC_SESSION_IDLE_TIMEOUT: "1800"
+  KC_SESSION_MAX_LIFESPAN: "36000"
+
+  # CORS configuration
+  KC_CORS_ORIGINS: "*"
+
+  # Admin API
+  KC_ADMIN_API_ENABLED: "true"
+
+  # Logging
+  RUST_LOG: "info,kc_server=info,kc_protocol_oidc=info"

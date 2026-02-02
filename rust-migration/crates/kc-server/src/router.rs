@@ -3,7 +3,6 @@
 //! This module creates the main Axum router that combines all endpoints.
 
 use axum::{
-
     http::StatusCode,
     response::Json,
     routing::get,
@@ -17,6 +16,7 @@ use kc_protocol_oidc::endpoints::oidc_router;
 
 use crate::providers::StorageProviders;
 use crate::state::AppState;
+use crate::ui;
 
 /// Creates the main application router.
 pub fn create_router(state: AppState) -> Router {
@@ -30,6 +30,15 @@ pub fn create_router(state: AppState) -> Router {
         .route("/health/live", get(liveness_check))
         .route("/health/ready", get(|| async { readiness_check().await }));
 
+    // Create UI routes for login/logout
+    let ui_routes = Router::new()
+        .route("/realms/:realm/login", get(ui::login_page).post(ui::login_submit))
+        .route(
+            "/realms/:realm/protocol/openid-connect/logout",
+            get(ui::logout_page).post(ui::logout_submit),
+        )
+        .with_state(state.clone());
+
     // CORS configuration
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -40,6 +49,7 @@ pub fn create_router(state: AppState) -> Router {
     Router::new()
         .merge(oidc)
         .merge(health)
+        .merge(ui_routes)
         .route("/", get(root))
         .layer(TraceLayer::new_for_http())
         .layer(cors)

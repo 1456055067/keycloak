@@ -159,6 +159,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - tests/integration: Token operation tests (introspection, revocation)
 - tests/integration: Admin API tests (health endpoints, discovery, JWKS)
 - tests/integration: Common test utilities with database seeding
+- kc-server: Login/logout UI with Askama templates
+- kc-server: LoginTemplate, LogoutTemplate, ErrorTemplate for user-facing pages
+- kc-server: Login form handler with UserAuthenticator integration
+- kc-server: Logout confirmation page with session termination
+- kc-server: OAuth parameter preservation through login flow
+- kc-server: Authorization code generation on successful login
+- deploy/docker: Multi-stage Dockerfile with security hardening
+- deploy/docker: docker-compose.yml with PostgreSQL and optional Redis
+- deploy/docker: init-db.sql for database initialization
+- deploy/kubernetes: Complete Kubernetes manifests
+- deploy/kubernetes: Deployment with resource limits and health probes
+- deploy/kubernetes: Service, Ingress with TLS support
+- deploy/kubernetes: HorizontalPodAutoscaler for auto-scaling
+- deploy/kubernetes: PodDisruptionBudget for high availability
+- deploy/kubernetes: ConfigMap and Secret templates
+- deploy/kubernetes: Kustomization for environment customization
+- docs/QUICKSTART.md: Getting started guide with Docker and local development
+- docs/DEPLOYMENT.md: Production deployment guide for Docker and Kubernetes
 
 ### Security
 

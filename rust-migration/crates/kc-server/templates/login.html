@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In - {{ realm_name }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="logo">
+        <h1>Keycloak</h1>
+        <div class="subtitle">Identity and Access Management</div>
+    </div>
+
+    <div class="realm-name">
+        Signing in to <strong>{{ realm_name }}</strong>
+    </div>
+
+    {% if let Some(error) = error %}
+    <div class="error-message">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    {% if let Some(info) = info %}
+    <div class="info-message">
+        {{ info }}
+    </div>
+    {% endif %}
+
+    <form method="POST" action="{{ action_url }}">
+        <!-- Preserve OAuth parameters -->
+        <input type="hidden" name="client_id" value="{{ client_id }}">
+        <input type="hidden" name="redirect_uri" value="{{ redirect_uri }}">
+        <input type="hidden" name="response_type" value="{{ response_type }}">
+        <input type="hidden" name="scope" value="{{ scope }}">
+        {% if let Some(state) = state %}
+        <input type="hidden" name="state" value="{{ state }}">
+        {% endif %}
+        {% if let Some(nonce) = nonce %}
+        <input type="hidden" name="nonce" value="{{ nonce }}">
+        {% endif %}
+        {% if let Some(code_challenge) = code_challenge %}
+        <input type="hidden" name="code_challenge" value="{{ code_challenge }}">
+        <input type="hidden" name="code_challenge_method" value="{{ code_challenge_method.as_deref().unwrap_or("S256") }}">
+        {% endif %}
+
+        <div class="form-group">
+            <label for="username">Username or Email</label>
+            <input
+                type="text"
+                id="username"
+                name="username"
+                placeholder="Enter your username"
+                autocomplete="username"
+                autocapitalize="none"
+                required
+                autofocus
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input
+                type="password"
+                id="password"
+                name="password"
+                placeholder="Enter your password"
+                autocomplete="current-password"
+                required
+            >
+        </div>
+
+        <button type="submit" class="btn btn-primary">Sign In</button>
+    </form>
+
+    <div class="links">
+        <a href="#">Forgot password?</a>
+    </div>
+</div>
+{% endblock %}

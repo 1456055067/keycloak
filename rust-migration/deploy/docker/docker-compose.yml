@@ -1,0 +1,106 @@
+# Docker Compose for Keycloak Rust local development
+#
+# Usage:
+#   docker-compose up -d          # Start all services
+#   docker-compose logs -f        # View logs
+#   docker-compose down -v        # Stop and remove volumes
+#
+# Access:
+#   Keycloak: http://localhost:8080
+#   PostgreSQL: localhost:5432 (keycloak/keycloak)
+
+services:
+  # PostgreSQL database
+  postgres:
+    image: postgres:16-alpine
+    container_name: keycloak-postgres
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - keycloak-network
+
+  # Keycloak Rust server
+  keycloak:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    container_name: keycloak-server
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Database
+      DATABASE_URL: postgres://keycloak:keycloak@postgres:5432/keycloak
+      KC_DB_MIN_CONNECTIONS: 2
+      KC_DB_MAX_CONNECTIONS: 10
+
+      # Server
+      KC_HOST: 0.0.0.0
+      KC_PORT: 8080
+      KC_BASE_URL: http://localhost:8080
+
+      # Tokens
+      KC_ACCESS_TOKEN_LIFESPAN: 300
+      KC_REFRESH_TOKEN_LIFESPAN: 1800
+      KC_ID_TOKEN_LIFESPAN: 300
+      KC_AUTH_CODE_LIFESPAN: 60
+
+      # Sessions
+      KC_SESSION_IDLE_TIMEOUT: 1800
+      KC_SESSION_MAX_LIFESPAN: 36000
+
+      # CORS
+      KC_CORS_ORIGINS: "*"
+
+      # Admin API
+      KC_ADMIN_API_ENABLED: "true"
+
+      # Logging
+      RUST_LOG: info,kc_server=debug,kc_protocol_oidc=debug
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - keycloak-network
+
+  # Redis for distributed caching (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: keycloak-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - keycloak-network
+    profiles:
+      - redis
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  keycloak-network:
+    driver: bridge

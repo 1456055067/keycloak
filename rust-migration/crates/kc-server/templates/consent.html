@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Grant Access - {{ realm_name }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="logo">
+        <h1>Keycloak</h1>
+        <div class="subtitle">Identity and Access Management</div>
+    </div>
+
+    <div class="realm-name">
+        {{ realm_name }}
+    </div>
+
+    <div class="client-info">
+        <div class="client-name">{{ client_name }}</div>
+        {% if let Some(desc) = client_description %}
+        <div class="client-description">{{ desc }}</div>
+        {% endif %}
+    </div>
+
+    <div class="info-message">
+        <strong>{{ client_name }}</strong> is requesting access to your account.
+    </div>
+
+    <form method="POST" action="{{ action_url }}">
+        <!-- Preserve OAuth parameters -->
+        <input type="hidden" name="client_id" value="{{ client_id }}">
+        <input type="hidden" name="redirect_uri" value="{{ redirect_uri }}">
+        <input type="hidden" name="response_type" value="{{ response_type }}">
+        <input type="hidden" name="scope" value="{{ scope }}">
+        {% if let Some(state) = state %}
+        <input type="hidden" name="state" value="{{ state }}">
+        {% endif %}
+        {% if let Some(nonce) = nonce %}
+        <input type="hidden" name="nonce" value="{{ nonce }}">
+        {% endif %}
+        {% if let Some(code_challenge) = code_challenge %}
+        <input type="hidden" name="code_challenge" value="{{ code_challenge }}">
+        <input type="hidden" name="code_challenge_method" value="{{ code_challenge_method.as_deref().unwrap_or("S256") }}">
+        {% endif %}
+        <input type="hidden" name="session_id" value="{{ session_id }}">
+        <input type="hidden" name="consent" value="granted">
+
+        <div class="scope-list">
+            <h3>This application will be able to:</h3>
+            {% for scope_info in scopes %}
+            <div class="scope-item">
+                <input type="checkbox" id="scope_{{ loop.index }}" checked disabled>
+                <label for="scope_{{ loop.index }}">{{ scope_info.description }}</label>
+            </div>
+            {% endfor %}
+        </div>
+
+        <button type="submit" class="btn btn-primary">Allow Access</button>
+        <button type="submit" name="consent" value="denied" class="btn btn-secondary">Deny</button>
+    </form>
+
+    <div class="links">
+        Logged in as <strong>{{ username }}</strong>
+    </div>
+</div>
+{% endblock %}

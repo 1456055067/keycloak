@@ -38,6 +38,10 @@ tower = { workspace = true }
 tower-http = { workspace = true }
 hyper = { workspace = true }
 
+# Templating
+askama = "0.12"
+askama_axum = "0.4"
+
 # Serialization
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -48,6 +52,7 @@ sqlx = { workspace = true }
 # Utilities
 uuid = { workspace = true }
 chrono = { workspace = true }
+url = { workspace = true }
 
 # Logging
 tracing = { workspace = true }

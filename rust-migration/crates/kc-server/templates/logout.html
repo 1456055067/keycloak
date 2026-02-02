@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Sign Out - {{ realm_name }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="logo">
+        <h1>Keycloak</h1>
+        <div class="subtitle">Identity and Access Management</div>
+    </div>
+
+    <div class="realm-name">
+        {{ realm_name }}
+    </div>
+
+    {% if confirmed %}
+    <div class="success-message">
+        You have been signed out successfully.
+    </div>
+
+    {% if let Some(redirect) = redirect_uri %}
+    <p style="text-align: center; margin-bottom: 20px; color: #666;">
+        You will be redirected shortly...
+    </p>
+    <script>
+        setTimeout(function() {
+            window.location.href = "{{ redirect }}";
+        }, 2000);
+    </script>
+    {% endif %}
+
+    <a href="/realms/{{ realm_name }}/protocol/openid-connect/auth" class="btn btn-primary" style="display: block; text-align: center; text-decoration: none;">
+        Sign In Again
+    </a>
+    {% else %}
+    <div class="info-message">
+        Are you sure you want to sign out?
+    </div>
+
+    <form method="POST" action="{{ action_url }}">
+        {% if let Some(id_token_hint) = id_token_hint %}
+        <input type="hidden" name="id_token_hint" value="{{ id_token_hint }}">
+        {% endif %}
+        {% if let Some(redirect) = redirect_uri %}
+        <input type="hidden" name="post_logout_redirect_uri" value="{{ redirect }}">
+        {% endif %}
+        {% if let Some(state) = state %}
+        <input type="hidden" name="state" value="{{ state }}">
+        {% endif %}
+
+        <button type="submit" class="btn btn-primary">Sign Out</button>
+        <a href="javascript:history.back()" class="btn btn-secondary" style="display: block; text-align: center; text-decoration: none; margin-top: 10px;">
+            Cancel
+        </a>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

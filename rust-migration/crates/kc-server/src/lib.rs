@@ -30,6 +30,7 @@ pub mod config;
 pub mod providers;
 pub mod router;
 pub mod state;
+pub mod ui;
 
 pub use config::ServerConfig;
 pub use router::create_router;
