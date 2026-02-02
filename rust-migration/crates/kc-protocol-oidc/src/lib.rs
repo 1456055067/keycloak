@@ -7,14 +7,40 @@
 //! - Token endpoint
 //! - `UserInfo` endpoint
 //! - JWKS endpoint
+//! - Token introspection and revocation
 //!
 //! ## CNSA 2.0 Compliance
 //!
 //! Only ES384, ES512, RS384, RS512, PS384, PS512 signing algorithms are supported.
 //! ES256, RS256, PS256 are explicitly forbidden.
+//!
+//! ## Modules
+//!
+//! - [`claims`] - JWT claim types for access, ID, and refresh tokens
+//! - [`error`] - OIDC error types following RFC 6749
+//! - [`request`] - Request types for OIDC endpoints
+//! - [`token`] - Token manager for creating and validating tokens
+//! - [`types`] - Common OIDC types (grant types, response modes, etc.)
 
 #![forbid(unsafe_code)]
 #![deny(warnings)]
 #![deny(missing_docs)]
 
-// OIDC protocol will be implemented in Phase 4
+pub mod claims;
+pub mod error;
+pub mod request;
+pub mod token;
+pub mod types;
+
+// Re-export commonly used types
+pub use claims::{AccessTokenClaims, IdTokenClaims, RefreshTokenClaims};
+pub use error::{ErrorResponse, OidcError, OidcResult};
+pub use request::{
+    AuthorizationRequest, DeviceAuthorizationRequest, DeviceTokenRequest, EndSessionRequest,
+    IntrospectionRequest, RevocationRequest, TokenRequest, UserInfoRequest,
+};
+pub use token::{IntrospectionResponse, TokenConfig, TokenManager, TokenResponse};
+pub use types::{
+    CodeChallengeMethod, Display, GrantType, Prompt, ResponseMode, ResponseType, ResponseTypes,
+    SubjectType, TokenType,
+};

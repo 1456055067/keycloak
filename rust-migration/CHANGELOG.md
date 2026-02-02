@@ -38,6 +38,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - migrations: 25+ tables including realms, users, clients, roles, groups, credentials, sessions, events
 - migrations: Proper foreign key constraints and indexes
 - migrations: Automatic updated_at trigger function
+- kc-protocol-oidc: OIDC error types following RFC 6749 (OidcError, ErrorResponse)
+- kc-protocol-oidc: Common OIDC types (GrantType, ResponseType, ResponseMode, Prompt, etc.)
+- kc-protocol-oidc: JWT claim types (AccessTokenClaims, IdTokenClaims, RefreshTokenClaims)
+- kc-protocol-oidc: Token Manager for token creation and validation
+- kc-protocol-oidc: Request types for all OIDC endpoints (Authorization, Token, Introspection, etc.)
+- kc-protocol-oidc: PKCE support with CodeChallengeMethod (S256, plain)
+- kc-protocol-oidc: Token exchange support (RFC 8693)
+- kc-protocol-oidc: Device authorization flow types (RFC 8628)
 - GitHub Actions CI workflow (.github/workflows/ci.yml)
 - Pre-commit hooks script (scripts/pre-commit)
 - Cargo audit configuration (.cargo/audit.toml)

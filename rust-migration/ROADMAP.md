@@ -207,8 +207,8 @@ impl FlowContext<states::InProgress> {
 - ⬜ UserInfo endpoint
 - ⬜ Introspection and revocation endpoints
 - ⬜ Well-known configuration and JWKS endpoints
-- ⬜ PKCE support (required for public clients)
-- ⬜ Token Manager (access, ID, refresh tokens)
+- ✅ PKCE support (required for public clients)
+- ✅ Token Manager (access, ID, refresh tokens)
 - ⬜ Protocol mappers SPI
 
 ### Axum Router Structure
