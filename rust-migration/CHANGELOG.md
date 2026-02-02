@@ -58,6 +58,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - kc-protocol-oidc: RealmProvider trait for pluggable realm data access
 - kc-protocol-oidc: OidcState for shared Axum state management
 - kc-protocol-oidc: oidc_router() function for complete OIDC router configuration
+- kc-protocol-oidc: Authorization endpoint handler (GET/POST /auth) with code, implicit, hybrid flows
+- kc-protocol-oidc: AuthorizationCode and AuthorizationResponse types
+- kc-protocol-oidc: PKCE validation (S256 and plain methods)
+- kc-protocol-oidc: Response mode handling (query, fragment, form_post)
 - GitHub Actions CI workflow (.github/workflows/ci.yml)
 - Pre-commit hooks script (scripts/pre-commit)
 - Cargo audit configuration (.cargo/audit.toml)

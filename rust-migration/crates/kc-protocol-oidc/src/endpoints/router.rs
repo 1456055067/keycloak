@@ -4,6 +4,7 @@
 
 use axum::{Router, routing::{get, post}};
 
+use super::authorization::{authorize_get, authorize_post};
 use super::discovery::{jwks, well_known};
 use super::introspection::introspect;
 use super::revocation::revoke;
@@ -17,15 +18,15 @@ use super::userinfo::{userinfo_get, userinfo_post};
 ///
 /// The router provides the following endpoints (relative to the mount point):
 ///
-/// | Method | Path                             | Handler     | Description                    |
-/// |--------|----------------------------------|-------------|--------------------------------|
-/// | GET    | `/:realm/.well-known/openid-configuration` | `well_known` | Discovery document     |
-/// | GET    | `/:realm/protocol/openid-connect/certs`    | `jwks`       | JSON Web Key Set       |
-/// | POST   | `/:realm/protocol/openid-connect/token`    | `token`      | Token endpoint         |
-/// | GET    | `/:realm/protocol/openid-connect/userinfo` | `userinfo`   | `UserInfo` (GET)       |
-/// | POST   | `/:realm/protocol/openid-connect/userinfo` | `userinfo`   | `UserInfo` (POST)      |
-/// | POST   | `/:realm/protocol/openid-connect/token/introspect` | `introspect` | Introspection |
-/// | POST   | `/:realm/protocol/openid-connect/revoke`   | `revoke`     | Token revocation       |
+/// | Method   | Path                             | Handler     | Description                    |
+/// |----------|----------------------------------|-------------|--------------------------------|
+/// | GET      | `/:realm/.well-known/openid-configuration` | `well_known` | Discovery document     |
+/// | GET      | `/:realm/protocol/openid-connect/certs`    | `jwks`       | JSON Web Key Set       |
+/// | GET/POST | `/:realm/protocol/openid-connect/auth`     | `authorize`  | Authorization endpoint |
+/// | POST     | `/:realm/protocol/openid-connect/token`    | `token`      | Token endpoint         |
+/// | GET/POST | `/:realm/protocol/openid-connect/userinfo` | `userinfo`   | `UserInfo`             |
+/// | POST     | `/:realm/protocol/openid-connect/token/introspect` | `introspect` | Introspection |
+/// | POST     | `/:realm/protocol/openid-connect/revoke`   | `revoke`     | Token revocation       |
 ///
 /// # Usage
 ///
@@ -37,11 +38,6 @@ use super::userinfo::{userinfo_get, userinfo_post};
 ///     .merge(oidc_router())
 ///     .with_state(state);
 /// ```
-///
-/// # Note
-///
-/// The authorization endpoint (`/auth`) requires UI interaction and should be
-/// implemented separately with proper session management and login flows.
 pub fn oidc_router<R: RealmProvider + Clone + 'static>() -> Router<OidcState<R>> {
     Router::new()
         // Discovery endpoints
@@ -52,6 +48,11 @@ pub fn oidc_router<R: RealmProvider + Clone + 'static>() -> Router<OidcState<R>>
         .route(
             "/realms/:realm/protocol/openid-connect/certs",
             get(jwks::<R>),
+        )
+        // Authorization endpoint
+        .route(
+            "/realms/:realm/protocol/openid-connect/auth",
+            get(authorize_get::<R>).post(authorize_post::<R>),
         )
         // Token endpoints
         .route(

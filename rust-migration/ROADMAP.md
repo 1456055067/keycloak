@@ -202,7 +202,7 @@ impl FlowContext<states::InProgress> {
 
 ### Deliverables
 
-- ⬜ Authorization endpoint (code, implicit, hybrid flows)
+- ✅ Authorization endpoint (code, implicit, hybrid flows)
 - ✅ Token endpoint handler (authorization_code, client_credentials, refresh_token, password, device_code, token_exchange)
 - ✅ UserInfo endpoint handler (GET/POST)
 - ✅ Introspection endpoint handler (RFC 7662)
