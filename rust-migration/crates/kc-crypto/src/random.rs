@@ -81,6 +81,20 @@ pub fn generate_session_id() -> String {
     random_alphanumeric(32)
 }
 
+/// Generates a secure random client secret.
+///
+/// Creates a 32-character alphanumeric secret suitable for OAuth 2.0
+/// confidential clients.
+///
+/// # Security
+///
+/// The secret has approximately 190 bits of entropy (log2(62^32)),
+/// providing strong security for client authentication.
+#[must_use]
+pub fn generate_client_secret() -> String {
+    random_alphanumeric(32)
+}
+
 /// Generates a URL-safe base64-encoded random string.
 ///
 /// Suitable for use in URLs without encoding issues.
@@ -189,6 +203,20 @@ mod tests {
         let id = generate_session_id();
         assert_eq!(id.len(), 32);
         assert!(id.chars().all(|c| c.is_ascii_alphanumeric()));
+    }
+
+    #[test]
+    fn generate_client_secret_format() {
+        let secret = generate_client_secret();
+        assert_eq!(secret.len(), 32);
+        assert!(secret.chars().all(|c| c.is_ascii_alphanumeric()));
+    }
+
+    #[test]
+    fn generate_client_secret_uniqueness() {
+        let secrets: HashSet<String> = (0..1000).map(|_| generate_client_secret()).collect();
+        // All 1000 secrets should be unique
+        assert_eq!(secrets.len(), 1000);
     }
 
     #[test]

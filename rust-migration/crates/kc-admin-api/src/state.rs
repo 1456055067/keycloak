@@ -163,3 +163,42 @@ where
         }
     }
 }
+
+/// State for client operations (requires realm context).
+pub struct ClientState<R, C>
+where
+    R: RealmProvider,
+    C: ClientProvider,
+{
+    /// Realm storage provider (for realm validation).
+    pub realm_provider: Arc<R>,
+    /// Client storage provider.
+    pub client_provider: Arc<C>,
+}
+
+impl<R, C> Clone for ClientState<R, C>
+where
+    R: RealmProvider,
+    C: ClientProvider,
+{
+    fn clone(&self) -> Self {
+        Self {
+            realm_provider: Arc::clone(&self.realm_provider),
+            client_provider: Arc::clone(&self.client_provider),
+        }
+    }
+}
+
+impl<R, C> ClientState<R, C>
+where
+    R: RealmProvider,
+    C: ClientProvider,
+{
+    /// Creates a new client state.
+    pub fn new(realm_provider: Arc<R>, client_provider: Arc<C>) -> Self {
+        Self {
+            realm_provider,
+            client_provider,
+        }
+    }
+}

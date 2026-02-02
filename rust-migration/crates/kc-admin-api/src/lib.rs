@@ -61,6 +61,18 @@
 //! | GET | `/admin/realms/{realm}/users/{id}` | Get user by ID |
 //! | PUT | `/admin/realms/{realm}/users/{id}` | Update a user |
 //! | DELETE | `/admin/realms/{realm}/users/{id}` | Delete a user |
+//!
+//! ### Clients
+//!
+//! | Method | Path | Description |
+//! |--------|------|-------------|
+//! | GET | `/admin/realms/{realm}/clients` | List/search clients |
+//! | POST | `/admin/realms/{realm}/clients` | Create a new client |
+//! | GET | `/admin/realms/{realm}/clients/{id}` | Get client by ID |
+//! | PUT | `/admin/realms/{realm}/clients/{id}` | Update a client |
+//! | DELETE | `/admin/realms/{realm}/clients/{id}` | Delete a client |
+//! | GET | `/admin/realms/{realm}/clients/{id}/client-secret` | Get client secret |
+//! | POST | `/admin/realms/{realm}/clients/{id}/client-secret` | Regenerate client secret |
 
 #![forbid(unsafe_code)]
 #![deny(warnings)]
@@ -73,9 +85,11 @@ pub mod state;
 
 // Re-export commonly used types
 pub use dto::{
-    CreateRealmRequest, CreateUserRequest, RealmRepresentation, RealmSummary,
-    UpdateRealmRequest, UpdateUserRequest, UserRepresentation, UserSearchParams,
+    ClientRepresentation, ClientSearchParams, ClientSecretResponse, ClientSummary,
+    CreateClientRequest, CreateRealmRequest, CreateUserRequest, RealmRepresentation, RealmSummary,
+    UpdateClientRequest, UpdateRealmRequest, UpdateUserRequest, UserRepresentation,
+    UserSearchParams,
 };
 pub use error::{AdminError, AdminResult, ErrorResponse};
-pub use router::{admin_router, realm_router, user_router};
-pub use state::{AdminState, RealmState, UserState};
+pub use router::{admin_client_router, admin_router, client_router, realm_router, user_router};
+pub use state::{AdminState, ClientState, RealmState, UserState};

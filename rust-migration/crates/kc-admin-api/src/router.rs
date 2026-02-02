@@ -9,14 +9,16 @@ use axum::{
     response::IntoResponse,
     routing::{delete, get, post, put},
 };
-use kc_storage::{CredentialProvider, RealmProvider, UserProvider};
+use kc_storage::{ClientProvider, CredentialProvider, RealmProvider, UserProvider};
 
 use crate::dto::{
+    ClientRepresentation, ClientSearchParams, ClientSecretResponse, CreateClientRequest,
     CreateRealmRequest, CreateUserRequest, RealmRepresentation, RealmSummary,
-    UpdateRealmRequest, UpdateUserRequest, UserRepresentation, UserSearchParams,
+    UpdateClientRequest, UpdateRealmRequest, UpdateUserRequest, UserRepresentation,
+    UserSearchParams,
 };
 use crate::error::{AdminError, AdminResult};
-use crate::state::UserState;
+use crate::state::{ClientState, UserState};
 
 // ============================================================================
 // Realm Handlers
@@ -380,10 +382,266 @@ where
 }
 
 // ============================================================================
+// Client Handlers
+// ============================================================================
+
+/// GET /admin/realms/{realm}/clients - List/search clients
+async fn get_clients<R, C>(
+    State(state): State<ClientState<R, C>>,
+    Path(realm_name): Path<String>,
+    Query(params): Query<ClientSearchParams>,
+) -> AdminResult<Json<Vec<ClientRepresentation>>>
+where
+    R: RealmProvider,
+    C: ClientProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Search clients
+    let criteria = params.into_criteria();
+    let clients = state.client_provider.search(realm.id, &criteria).await?;
+
+    // Convert to representations
+    let representations: Vec<ClientRepresentation> = clients
+        .into_iter()
+        .map(ClientRepresentation::from)
+        .collect();
+
+    Ok(Json(representations))
+}
+
+/// POST /admin/realms/{realm}/clients - Create a client
+async fn create_client<R, C>(
+    State(state): State<ClientState<R, C>>,
+    Path(realm_name): Path<String>,
+    Json(request): Json<CreateClientRequest>,
+) -> AdminResult<impl IntoResponse>
+where
+    R: RealmProvider,
+    C: ClientProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Validate client_id
+    if request.client_id.is_empty() {
+        return Err(AdminError::Validation(
+            "Client ID cannot be empty".to_string(),
+        ));
+    }
+
+    // Check for duplicate client_id
+    if state
+        .client_provider
+        .get_by_client_id(realm.id, &request.client_id)
+        .await?
+        .is_some()
+    {
+        return Err(AdminError::conflict("Client", "clientId", &request.client_id));
+    }
+
+    // Convert to domain model
+    let client = request.into_client(realm.id);
+    let client_id = client.id;
+    let client_id_str = client.client_id.clone();
+
+    // Create the client
+    state.client_provider.create(&client).await.map_err(|e| {
+        if e.is_duplicate() {
+            AdminError::conflict("Client", "clientId", &client_id_str)
+        } else {
+            AdminError::from(e)
+        }
+    })?;
+
+    // Return 201 Created with Location header
+    Ok((
+        StatusCode::CREATED,
+        [(
+            "Location",
+            format!("/admin/realms/{}/clients/{}", realm_name, client_id),
+        )],
+    ))
+}
+
+/// GET /admin/realms/{realm}/clients/{id} - Get client by ID
+async fn get_client<R, C>(
+    State(state): State<ClientState<R, C>>,
+    Path((realm_name, client_id)): Path<(String, uuid::Uuid)>,
+) -> AdminResult<Json<ClientRepresentation>>
+where
+    R: RealmProvider,
+    C: ClientProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Get client
+    let client = state
+        .client_provider
+        .get_by_id(realm.id, client_id)
+        .await?
+        .ok_or_else(|| AdminError::not_found_id("Client", client_id))?;
+
+    Ok(Json(ClientRepresentation::from(client)))
+}
+
+/// PUT /admin/realms/{realm}/clients/{id} - Update a client
+async fn update_client<R, C>(
+    State(state): State<ClientState<R, C>>,
+    Path((realm_name, client_id)): Path<(String, uuid::Uuid)>,
+    Json(request): Json<UpdateClientRequest>,
+) -> AdminResult<impl IntoResponse>
+where
+    R: RealmProvider,
+    C: ClientProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Get existing client
+    let mut client = state
+        .client_provider
+        .get_by_id(realm.id, client_id)
+        .await?
+        .ok_or_else(|| AdminError::not_found_id("Client", client_id))?;
+
+    // Apply updates (client_id cannot be changed)
+    request.apply_to(&mut client);
+
+    // Save updates
+    state.client_provider.update(&client).await?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// DELETE /admin/realms/{realm}/clients/{id} - Delete a client
+async fn delete_client<R, C>(
+    State(state): State<ClientState<R, C>>,
+    Path((realm_name, client_id)): Path<(String, uuid::Uuid)>,
+) -> AdminResult<impl IntoResponse>
+where
+    R: RealmProvider,
+    C: ClientProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Verify client exists
+    if state
+        .client_provider
+        .get_by_id(realm.id, client_id)
+        .await?
+        .is_none()
+    {
+        return Err(AdminError::not_found_id("Client", client_id));
+    }
+
+    // Delete the client
+    state.client_provider.delete(realm.id, client_id).await?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// GET /admin/realms/{realm}/clients/{id}/client-secret - Get client secret
+async fn get_client_secret<R, C>(
+    State(state): State<ClientState<R, C>>,
+    Path((realm_name, client_id)): Path<(String, uuid::Uuid)>,
+) -> AdminResult<Json<ClientSecretResponse>>
+where
+    R: RealmProvider,
+    C: ClientProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Get client
+    let client = state
+        .client_provider
+        .get_by_id(realm.id, client_id)
+        .await?
+        .ok_or_else(|| AdminError::not_found_id("Client", client_id))?;
+
+    // Public clients don't have secrets
+    if client.public_client {
+        return Err(AdminError::BadRequest(
+            "Public clients do not have a client secret".to_string(),
+        ));
+    }
+
+    Ok(Json(ClientSecretResponse {
+        value: client.secret,
+    }))
+}
+
+/// POST /admin/realms/{realm}/clients/{id}/client-secret - Regenerate client secret
+async fn regenerate_client_secret<R, C>(
+    State(state): State<ClientState<R, C>>,
+    Path((realm_name, client_id)): Path<(String, uuid::Uuid)>,
+) -> AdminResult<Json<ClientSecretResponse>>
+where
+    R: RealmProvider,
+    C: ClientProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Get client to check if it's public
+    let client = state
+        .client_provider
+        .get_by_id(realm.id, client_id)
+        .await?
+        .ok_or_else(|| AdminError::not_found_id("Client", client_id))?;
+
+    // Public clients don't have secrets
+    if client.public_client {
+        return Err(AdminError::BadRequest(
+            "Public clients do not have a client secret".to_string(),
+        ));
+    }
+
+    // Regenerate secret using the provider
+    let new_secret = state.client_provider.regenerate_secret(realm.id, client_id).await?;
+
+    Ok(Json(ClientSecretResponse {
+        value: Some(new_secret),
+    }))
+}
+
+// ============================================================================
 // Router Construction
 // ============================================================================
 
-/// Creates the Admin API router.
+/// Creates the Admin API router for user operations.
 ///
 /// # Routes
 ///
@@ -445,6 +703,62 @@ where
         )
 }
 
+/// Creates the Admin API router for client operations.
+///
+/// # Routes
+///
+/// ## Clients
+/// - `GET /admin/realms/{realm}/clients` - List/search clients
+/// - `POST /admin/realms/{realm}/clients` - Create a client
+/// - `GET /admin/realms/{realm}/clients/{id}` - Get client by ID
+/// - `PUT /admin/realms/{realm}/clients/{id}` - Update a client
+/// - `DELETE /admin/realms/{realm}/clients/{id}` - Delete a client
+/// - `GET /admin/realms/{realm}/clients/{id}/client-secret` - Get client secret
+/// - `POST /admin/realms/{realm}/clients/{id}/client-secret` - Regenerate client secret
+///
+/// # Example
+///
+/// ```ignore
+/// use kc_admin_api::{admin_client_router, ClientState};
+/// use std::sync::Arc;
+///
+/// let state = ClientState::new(
+///     Arc::new(realm_provider),
+///     Arc::new(client_provider),
+/// );
+///
+/// let app = admin_client_router().with_state(state);
+/// ```
+pub fn admin_client_router<R, C>() -> Router<ClientState<R, C>>
+where
+    R: RealmProvider + 'static,
+    C: ClientProvider + 'static,
+{
+    Router::new()
+        .route("/admin/realms/{realm}/clients", get(get_clients::<R, C>))
+        .route("/admin/realms/{realm}/clients", post(create_client::<R, C>))
+        .route(
+            "/admin/realms/{realm}/clients/{id}",
+            get(get_client::<R, C>),
+        )
+        .route(
+            "/admin/realms/{realm}/clients/{id}",
+            put(update_client::<R, C>),
+        )
+        .route(
+            "/admin/realms/{realm}/clients/{id}",
+            delete(delete_client::<R, C>),
+        )
+        .route(
+            "/admin/realms/{realm}/clients/{id}/client-secret",
+            get(get_client_secret::<R, C>),
+        )
+        .route(
+            "/admin/realms/{realm}/clients/{id}/client-secret",
+            post(regenerate_client_secret::<R, C>),
+        )
+}
+
 /// Creates a standalone realm router (for modular composition).
 ///
 /// # Routes
@@ -492,4 +806,33 @@ where
         .route("/{id}", get(get_user::<R, U, Cr>))
         .route("/{id}", put(update_user::<R, U, Cr>))
         .route("/{id}", delete(delete_user::<R, U, Cr>))
+}
+
+/// Creates a standalone client router (for modular composition).
+///
+/// Note: This router expects to be nested under a path that includes the realm,
+/// e.g., `/admin/realms/{realm}/clients`.
+///
+/// # Routes
+///
+/// - `GET /` - List/search clients
+/// - `POST /` - Create a client
+/// - `GET /{id}` - Get client by ID
+/// - `PUT /{id}` - Update a client
+/// - `DELETE /{id}` - Delete a client
+/// - `GET /{id}/client-secret` - Get client secret
+/// - `POST /{id}/client-secret` - Regenerate client secret
+pub fn client_router<R, C>() -> Router<ClientState<R, C>>
+where
+    R: RealmProvider + 'static,
+    C: ClientProvider + 'static,
+{
+    Router::new()
+        .route("/", get(get_clients::<R, C>))
+        .route("/", post(create_client::<R, C>))
+        .route("/{id}", get(get_client::<R, C>))
+        .route("/{id}", put(update_client::<R, C>))
+        .route("/{id}", delete(delete_client::<R, C>))
+        .route("/{id}/client-secret", get(get_client_secret::<R, C>))
+        .route("/{id}/client-secret", post(regenerate_client_secret::<R, C>))
 }

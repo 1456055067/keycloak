@@ -256,7 +256,7 @@ pub fn oidc_router() -> Router<AppState> {
 - ✅ Admin API crate structure (error types, DTOs, state management)
 - ✅ Realm CRUD endpoints (list, create, get, update, delete)
 - ✅ User CRUD endpoints (list/search, create, get, update, delete)
-- ⬜ Client CRUD endpoints
+- ✅ Client CRUD endpoints (list/search, create, get, update, delete, client-secret)
 - ⬜ Role CRUD endpoints
 - ⬜ Group CRUD endpoints
 - ⬜ Permission/authorization system
@@ -277,6 +277,14 @@ POST   /admin/realms/{realm}/users      - Create user
 GET    /admin/realms/{realm}/users/{id} - Get user by ID
 PUT    /admin/realms/{realm}/users/{id} - Update user
 DELETE /admin/realms/{realm}/users/{id} - Delete user
+
+GET    /admin/realms/{realm}/clients                    - List/search clients
+POST   /admin/realms/{realm}/clients                    - Create client
+GET    /admin/realms/{realm}/clients/{id}               - Get client by ID
+PUT    /admin/realms/{realm}/clients/{id}               - Update client
+DELETE /admin/realms/{realm}/clients/{id}               - Delete client
+GET    /admin/realms/{realm}/clients/{id}/client-secret - Get client secret
+POST   /admin/realms/{realm}/clients/{id}/client-secret - Regenerate client secret
 ```
 
 ### Java Files to Reference

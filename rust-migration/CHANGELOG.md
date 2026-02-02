@@ -81,7 +81,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - kc-admin-api: Realm CRUD endpoints (GET/POST /admin/realms, GET/PUT/DELETE /admin/realms/{realm})
 - kc-admin-api: User CRUD endpoints (GET/POST /admin/realms/{realm}/users, GET/PUT/DELETE /admin/realms/{realm}/users/{id})
 - kc-admin-api: User search with query parameters (search, username, email, enabled, pagination)
-- kc-admin-api: admin_router(), realm_router(), user_router() for modular router composition
+- kc-admin-api: Client CRUD endpoints (GET/POST /admin/realms/{realm}/clients, GET/PUT/DELETE /admin/realms/{realm}/clients/{id})
+- kc-admin-api: Client secret management (GET/POST /admin/realms/{realm}/clients/{id}/client-secret)
+- kc-admin-api: Client search with query parameters (search, clientId, enabled, publicClient, pagination)
+- kc-admin-api: admin_router(), admin_client_router(), realm_router(), user_router(), client_router() for modular router composition
+- kc-crypto: generate_client_secret() for OAuth 2.0 confidential client secrets
 - GitHub Actions CI workflow (.github/workflows/ci.yml)
 - Pre-commit hooks script (scripts/pre-commit)
 - Cargo audit configuration (.cargo/audit.toml)
