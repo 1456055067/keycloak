@@ -15,12 +15,123 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+use std::sync::Arc;
+use uuid::Uuid;
+
+use kc_session::SessionProvider;
 
 use crate::error::OidcError;
 use crate::request::AuthorizationRequest;
 use crate::types::{CodeChallengeMethod, ResponseMode, ResponseTypes};
 
+use super::grants::{AuthCodeParams, AuthCodeStore, AuthenticatedClient, StoredAuthCode};
 use super::state::{OidcState, RealmProvider};
+
+// ============================================================================
+// Authorization Endpoint State
+// ============================================================================
+
+/// Client lookup trait for authorization endpoint.
+///
+/// Implement this trait to look up client information from your storage layer.
+#[async_trait::async_trait]
+pub trait ClientProvider: Send + Sync {
+    /// Looks up a client by its OAuth `client_id`.
+    async fn get_client(
+        &self,
+        realm_name: &str,
+        client_id: &str,
+    ) -> Result<Option<AuthenticatedClient>, OidcError>;
+
+    /// Validates a redirect URI is registered for the client.
+    async fn validate_redirect_uri(
+        &self,
+        client: &AuthenticatedClient,
+        redirect_uri: &str,
+    ) -> Result<bool, OidcError>;
+}
+
+/// Session context for authorization endpoint.
+///
+/// Contains information about the current user's session state.
+#[derive(Debug, Clone)]
+pub struct AuthSessionContext {
+    /// Whether the user is authenticated.
+    pub authenticated: bool,
+
+    /// User ID (if authenticated).
+    pub user_id: Option<Uuid>,
+
+    /// User session ID (if exists).
+    pub user_session_id: Option<Uuid>,
+
+    /// Client session ID (if exists for this client).
+    pub client_session_id: Option<Uuid>,
+
+    /// Whether consent has been granted for the requested scopes.
+    pub consent_granted: bool,
+}
+
+impl Default for AuthSessionContext {
+    fn default() -> Self {
+        Self {
+            authenticated: false,
+            user_id: None,
+            user_session_id: None,
+            client_session_id: None,
+            consent_granted: false,
+        }
+    }
+}
+
+/// Enhanced state for authorization endpoint with full capabilities.
+///
+/// This state extends the basic `OidcState` with session management,
+/// client lookup, and authorization code storage.
+#[derive(Clone)]
+pub struct AuthorizationEndpointState<R, S, C, A>
+where
+    R: RealmProvider,
+    S: SessionProvider,
+    C: ClientProvider,
+    A: AuthCodeStore,
+{
+    /// Realm provider for accessing realm-specific data.
+    pub realm_provider: Arc<R>,
+
+    /// Session provider for checking user authentication state.
+    pub session_provider: Arc<S>,
+
+    /// Client provider for looking up client information.
+    pub client_provider: Arc<C>,
+
+    /// Authorization code store.
+    pub auth_code_store: Arc<A>,
+}
+
+impl<R, S, C, A> AuthorizationEndpointState<R, S, C, A>
+where
+    R: RealmProvider,
+    S: SessionProvider,
+    C: ClientProvider,
+    A: AuthCodeStore,
+{
+    /// Creates a new authorization endpoint state.
+    #[allow(clippy::missing_const_for_fn)] // Can't be const: moves Arc
+    pub fn new(
+        realm_provider: Arc<R>,
+        session_provider: Arc<S>,
+        client_provider: Arc<C>,
+        auth_code_store: Arc<A>,
+    ) -> Self {
+        Self {
+            realm_provider,
+            session_provider,
+            client_provider,
+            auth_code_store,
+        }
+    }
+}
 
 /// Authorization code data stored between authorization and token exchange.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -159,6 +270,397 @@ pub async fn authorize_post<R: RealmProvider>(
     Form(request): Form<AuthorizationRequest>,
 ) -> impl IntoResponse {
     handle_authorization_request(&state, &realm, &request).await
+}
+
+// ============================================================================
+// Enhanced Authorization Handlers (with session and code storage)
+// ============================================================================
+
+/// GET `/auth` - Enhanced version with full session and storage support.
+///
+/// This handler validates the user's session state and stores authorization
+/// codes for later exchange at the token endpoint.
+pub async fn authorize_get_with_sessions<R, S, C, A>(
+    State(state): State<AuthorizationEndpointState<R, S, C, A>>,
+    Path(realm): Path<String>,
+    Query(request): Query<AuthorizationRequest>,
+) -> impl IntoResponse
+where
+    R: RealmProvider + 'static,
+    S: SessionProvider + 'static,
+    C: ClientProvider + 'static,
+    A: AuthCodeStore + 'static,
+{
+    handle_authorization_with_sessions(&state, &realm, &request).await
+}
+
+/// POST `/auth` - Enhanced version with full session and storage support.
+pub async fn authorize_post_with_sessions<R, S, C, A>(
+    State(state): State<AuthorizationEndpointState<R, S, C, A>>,
+    Path(realm): Path<String>,
+    Form(request): Form<AuthorizationRequest>,
+) -> impl IntoResponse
+where
+    R: RealmProvider + 'static,
+    S: SessionProvider + 'static,
+    C: ClientProvider + 'static,
+    A: AuthCodeStore + 'static,
+{
+    handle_authorization_with_sessions(&state, &realm, &request).await
+}
+
+/// Handles the authorization request with full session and storage support.
+async fn handle_authorization_with_sessions<R, S, C, A>(
+    state: &AuthorizationEndpointState<R, S, C, A>,
+    realm: &str,
+    request: &AuthorizationRequest,
+) -> Response
+where
+    R: RealmProvider,
+    S: SessionProvider,
+    C: ClientProvider,
+    A: AuthCodeStore,
+{
+    // Early validation - check realm and get client
+    let (redirect_uri, client) = match validate_request_with_client(state, realm, request).await {
+        Ok(result) => result,
+        Err(err) => {
+            return error_page(&err);
+        }
+    };
+
+    let response_mode = determine_response_mode(request);
+
+    // Full request validation
+    if let Err(err) = validate_authorization_request_full(state, realm, request, &client).await {
+        return build_error_redirect(&redirect_uri, &err, request.state.as_deref(), response_mode);
+    }
+
+    // Get session context (check if user is authenticated)
+    let session_context = get_session_context(state, realm, &client).await;
+
+    // Handle prompt=none
+    if request.is_prompt_none() {
+        if !session_context.authenticated {
+            return build_error_redirect(
+                &redirect_uri,
+                &OidcError::LoginRequired,
+                request.state.as_deref(),
+                response_mode,
+            );
+        }
+        if !session_context.consent_granted {
+            return build_error_redirect(
+                &redirect_uri,
+                &OidcError::ConsentRequired,
+                request.state.as_deref(),
+                response_mode,
+            );
+        }
+    }
+
+    // If not authenticated, redirect to login
+    if !session_context.authenticated {
+        return redirect_to_login(realm, request);
+    }
+
+    // If consent required and not granted, redirect to consent page
+    if request.requires_consent() && !session_context.consent_granted {
+        return redirect_to_consent(realm, request);
+    }
+
+    // User is authenticated and consent is granted - generate response
+    let user_id = session_context
+        .user_id
+        .expect("authenticated user must have user_id");
+
+    match generate_authorization_response_with_storage(
+        state,
+        realm,
+        request,
+        &client,
+        user_id,
+        &session_context,
+    )
+    .await
+    {
+        Ok(response) => build_success_redirect(&redirect_uri, &response, response_mode),
+        Err(err) => {
+            build_error_redirect(&redirect_uri, &err, request.state.as_deref(), response_mode)
+        }
+    }
+}
+
+/// Validates the request and retrieves client information.
+async fn validate_request_with_client<R, S, C, A>(
+    state: &AuthorizationEndpointState<R, S, C, A>,
+    realm: &str,
+    request: &AuthorizationRequest,
+) -> Result<(String, AuthenticatedClient), OidcError>
+where
+    R: RealmProvider,
+    S: SessionProvider,
+    C: ClientProvider,
+    A: AuthCodeStore,
+{
+    // Check if realm exists
+    if !state.realm_provider.realm_exists(realm).await? {
+        return Err(OidcError::InvalidRequest(format!(
+            "realm '{realm}' does not exist"
+        )));
+    }
+
+    // Validate client_id and look up client
+    if request.client_id.is_empty() {
+        return Err(OidcError::InvalidRequest(
+            "client_id is required".to_string(),
+        ));
+    }
+
+    let client = state
+        .client_provider
+        .get_client(realm, &request.client_id)
+        .await?
+        .ok_or_else(|| OidcError::InvalidRequest("unknown client_id".to_string()))?;
+
+    // Validate redirect_uri
+    let redirect_uri = request
+        .redirect_uri
+        .as_ref()
+        .ok_or_else(|| OidcError::InvalidRequest("redirect_uri is required".to_string()))?;
+
+    // Verify redirect_uri is registered for this client
+    if !state
+        .client_provider
+        .validate_redirect_uri(&client, redirect_uri)
+        .await?
+    {
+        return Err(OidcError::InvalidRequest(
+            "redirect_uri not registered for this client".to_string(),
+        ));
+    }
+
+    Ok((redirect_uri.clone(), client))
+}
+
+/// Full validation of authorization request with client context.
+#[allow(clippy::unused_async)]
+async fn validate_authorization_request_full<R, S, C, A>(
+    _state: &AuthorizationEndpointState<R, S, C, A>,
+    _realm: &str,
+    request: &AuthorizationRequest,
+    client: &AuthenticatedClient,
+) -> Result<(), OidcError>
+where
+    R: RealmProvider,
+    S: SessionProvider,
+    C: ClientProvider,
+    A: AuthCodeStore,
+{
+    // Parse and validate response_type
+    let response_types = ResponseTypes::from_str(&request.response_type)
+        .map_err(|_| OidcError::UnsupportedResponseType(request.response_type.clone()))?;
+
+    // Validate scope
+    if request.scope.is_none() || request.scope.as_ref().is_some_and(String::is_empty) {
+        return Err(OidcError::InvalidScope("scope is required".to_string()));
+    }
+
+    // For OIDC flows, validate openid scope is present
+    let is_oidc = request.is_oidc_request();
+
+    // Implicit and hybrid flows require nonce for OIDC
+    if is_oidc
+        && (response_types.is_implicit_flow() || response_types.is_hybrid_flow())
+        && request.nonce.is_none()
+    {
+        return Err(OidcError::InvalidRequest(
+            "nonce is required for implicit and hybrid flows".to_string(),
+        ));
+    }
+
+    // Validate PKCE for code flows
+    if response_types.is_code_flow() || response_types.is_hybrid_flow() {
+        validate_pkce_with_client(request, client)?;
+    }
+
+    // Validate prompt combinations
+    let prompts = request.prompt_values();
+    if prompts.contains(&crate::types::Prompt::None) && prompts.len() > 1 {
+        return Err(OidcError::InvalidRequest(
+            "prompt=none cannot be combined with other prompt values".to_string(),
+        ));
+    }
+
+    Ok(())
+}
+
+/// Validates PKCE parameters with client context (enforce PKCE for public clients).
+fn validate_pkce_with_client(
+    request: &AuthorizationRequest,
+    client: &AuthenticatedClient,
+) -> Result<(), OidcError> {
+    match (&request.code_challenge, &request.code_challenge_method) {
+        (Some(challenge), method) => {
+            // Validate challenge format
+            if challenge.len() < 43 || challenge.len() > 128 {
+                return Err(OidcError::InvalidRequest(
+                    "code_challenge must be between 43 and 128 characters".to_string(),
+                ));
+            }
+
+            // Validate characters (base64url without padding)
+            if !challenge
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+            {
+                return Err(OidcError::InvalidRequest(
+                    "code_challenge contains invalid characters".to_string(),
+                ));
+            }
+
+            // Default to S256 if method not specified
+            let method = method.unwrap_or(CodeChallengeMethod::S256);
+
+            // Warn/reject if using plain
+            if method == CodeChallengeMethod::Plain {
+                // In production, might want to reject plain unless specifically allowed
+            }
+
+            Ok(())
+        }
+        (None, Some(_)) => Err(OidcError::InvalidRequest(
+            "code_challenge_method requires code_challenge".to_string(),
+        )),
+        (None, None) => {
+            // PKCE required for public clients
+            if client.is_public {
+                Err(OidcError::InvalidRequest(
+                    "PKCE (code_challenge) is required for public clients".to_string(),
+                ))
+            } else {
+                Ok(())
+            }
+        }
+    }
+}
+
+/// Gets the session context for the current request.
+#[allow(clippy::unused_async)]
+async fn get_session_context<R, S, C, A>(
+    _state: &AuthorizationEndpointState<R, S, C, A>,
+    _realm: &str,
+    _client: &AuthenticatedClient,
+) -> AuthSessionContext
+where
+    R: RealmProvider,
+    S: SessionProvider,
+    C: ClientProvider,
+    A: AuthCodeStore,
+{
+    // TODO: Implement actual session lookup from cookies/headers
+    // This would involve:
+    // 1. Extract session cookie from request
+    // 2. Look up user session in session_provider
+    // 3. Check if user session is valid and not expired
+    // 4. Check if client session exists for this client
+    // 5. Check consent status
+
+    // For now, return unauthenticated state
+    // The actual implementation will be part of the auth flow completion
+    AuthSessionContext::default()
+}
+
+/// Generates the authorization response with storage support.
+async fn generate_authorization_response_with_storage<R, S, C, A>(
+    state: &AuthorizationEndpointState<R, S, C, A>,
+    realm: &str,
+    request: &AuthorizationRequest,
+    client: &AuthenticatedClient,
+    user_id: Uuid,
+    session_context: &AuthSessionContext,
+) -> Result<AuthorizationResponse, OidcError>
+where
+    R: RealmProvider,
+    S: SessionProvider,
+    C: ClientProvider,
+    A: AuthCodeStore,
+{
+    let response_types = ResponseTypes::from_str(&request.response_type)
+        .map_err(|_| OidcError::UnsupportedResponseType(request.response_type.clone()))?;
+
+    let mut response = AuthorizationResponse {
+        code: None,
+        access_token: None,
+        token_type: None,
+        id_token: None,
+        expires_in: None,
+        state: request.state.clone(),
+        scope: request.scope.clone(),
+        session_state: session_context
+            .user_session_id
+            .map(|id| id.to_string()),
+    };
+
+    // Generate and store authorization code for code and hybrid flows
+    if response_types.0.contains(&crate::types::ResponseType::Code) {
+        let code = generate_and_store_auth_code(
+            state,
+            realm,
+            request,
+            client,
+            user_id,
+            session_context,
+        )
+        .await?;
+        response.code = Some(code);
+    }
+
+    // Generate access token for implicit and hybrid flows
+    if response_types.0.contains(&crate::types::ResponseType::Token) {
+        let token_manager = state.realm_provider.get_token_manager(realm).await?;
+        let token_response = token_manager
+            .create_token_response(
+                &user_id.to_string(),
+                &client.client_id,
+                request.scope.as_deref().unwrap_or("openid"),
+                session_context
+                    .user_session_id
+                    .map(|id| id.to_string())
+                    .as_deref(),
+                request.nonce.as_deref(),
+                false, // don't include id_token here, handle separately
+                false, // no refresh token in implicit flow
+            )
+            .map_err(|e| OidcError::ServerError(format!("failed to create token: {e}")))?;
+
+        response.access_token = Some(token_response.access_token);
+        response.token_type = Some(token_response.token_type);
+        response.expires_in = Some(token_response.expires_in);
+    }
+
+    // Generate ID token for OIDC flows that request it
+    if response_types.0.contains(&crate::types::ResponseType::IdToken) {
+        let token_manager = state.realm_provider.get_token_manager(realm).await?;
+        let token_response = token_manager
+            .create_token_response(
+                &user_id.to_string(),
+                &client.client_id,
+                request.scope.as_deref().unwrap_or("openid"),
+                session_context
+                    .user_session_id
+                    .map(|id| id.to_string())
+                    .as_deref(),
+                request.nonce.as_deref(),
+                true,  // include id_token
+                false, // no refresh token
+            )
+            .map_err(|e| OidcError::ServerError(format!("failed to create id_token: {e}")))?;
+
+        response.id_token = token_response.id_token;
+    }
+
+    Ok(response)
 }
 
 /// Handles the authorization request.
@@ -445,7 +947,10 @@ async fn generate_authorization_response<R: RealmProvider>(
     Ok(response)
 }
 
-/// Generates an authorization code.
+/// Generates an authorization code (basic version without storage).
+///
+/// This is used by the basic `OidcState` handler. For full functionality
+/// with code storage, use the enhanced `AuthorizationEndpointState` handlers.
 #[allow(clippy::unused_async)]
 async fn generate_authorization_code<R: RealmProvider>(
     _state: &OidcState<R>,
@@ -453,19 +958,8 @@ async fn generate_authorization_code<R: RealmProvider>(
     request: &AuthorizationRequest,
     user_id: &str,
 ) -> Result<String, OidcError> {
-    // Generate a secure random code
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    let code = generate_secure_code();
-
-    let now_secs = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-
-    // Safe conversion: current timestamp fits in i64 until year 292 billion
-    #[allow(clippy::cast_possible_wrap)]
-    let expires_at = (now_secs + 600) as i64; // 10 minute expiration
+    // Generate a cryptographically secure random code
+    let code = kc_crypto::generate_auth_code();
 
     let _auth_code = AuthorizationCode {
         code: code.clone(),
@@ -478,29 +972,61 @@ async fn generate_authorization_code<R: RealmProvider>(
         code_challenge_method: request.code_challenge_method,
         state: request.state.clone(),
         session_id: None,
-        expires_at,
+        expires_at: chrono::Utc::now().timestamp() + 600, // 10 minute expiration
         used: false,
     };
 
-    // TODO: Store the authorization code
-    // state.code_store.store_code(realm, &auth_code).await?;
+    // Note: Basic handler doesn't store the code
+    // Use AuthorizationEndpointState handlers for full functionality
 
     Ok(code)
 }
 
-/// Generates a cryptographically secure random code.
-fn generate_secure_code() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
+/// Generates and stores an authorization code using the enhanced state.
+async fn generate_and_store_auth_code<R, S, C, A>(
+    state: &AuthorizationEndpointState<R, S, C, A>,
+    realm: &str,
+    request: &AuthorizationRequest,
+    client: &AuthenticatedClient,
+    user_id: Uuid,
+    session_context: &AuthSessionContext,
+) -> Result<String, OidcError>
+where
+    R: RealmProvider,
+    S: SessionProvider,
+    C: ClientProvider,
+    A: AuthCodeStore,
+{
+    // Generate a cryptographically secure random code
+    let code = kc_crypto::generate_auth_code();
 
-    // TODO: Use proper cryptographic random generator
-    // For now, use a simple hash-based approach
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
+    // Create the stored auth code
+    let params = AuthCodeParams {
+        code: code.clone(),
+        realm_name: realm.to_string(),
+        client_id: client.client_id.clone(),
+        client_uuid: client.id,
+        user_id,
+        redirect_uri: request.redirect_uri.clone().unwrap_or_default(),
+        scope: request.scope.clone().unwrap_or_default(),
+        ttl_seconds: 600, // 10 minutes
+    };
 
-    // In production, use: rand::thread_rng().sample_iter(&Alphanumeric).take(32).collect()
-    format!("{timestamp:x}")
+    let stored_code = StoredAuthCode::new(params)
+        .with_nonce(request.nonce.clone())
+        .with_pkce(
+            request.code_challenge.clone(),
+            request.code_challenge_method,
+        )
+        .with_session(
+            session_context.user_session_id,
+            session_context.client_session_id,
+        );
+
+    // Store the authorization code
+    state.auth_code_store.store_code(&stored_code).await?;
+
+    Ok(code)
 }
 
 /// Builds a success redirect response.

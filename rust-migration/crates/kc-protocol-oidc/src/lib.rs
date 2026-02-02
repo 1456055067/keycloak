@@ -78,4 +78,7 @@ pub use endpoints::{
     OidcState, RealmProvider, TokenEndpointState,
     // Token endpoint handlers
     token, token_with_sessions,
+    // Authorization endpoint types and handlers
+    AuthorizationEndpointState, AuthSessionContext, ClientProvider,
+    authorize_get_with_sessions, authorize_post_with_sessions,
 };

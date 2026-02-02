@@ -33,7 +33,10 @@ mod token;
 mod userinfo;
 
 // Re-export types from authorization module
-pub use authorization::{AuthorizationCode, AuthorizationResponse};
+pub use authorization::{
+    AuthorizationCode, AuthorizationEndpointState, AuthorizationResponse, AuthSessionContext,
+    ClientProvider, authorize_get_with_sessions, authorize_post_with_sessions,
+};
 
 // Re-export grant types
 pub use grants::{
