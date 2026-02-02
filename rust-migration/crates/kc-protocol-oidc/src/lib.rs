@@ -81,4 +81,7 @@ pub use endpoints::{
     // Authorization endpoint types and handlers
     AuthorizationEndpointState, AuthSessionContext, ClientProvider,
     authorize_get_with_sessions, authorize_post_with_sessions,
+    // UserInfo endpoint types and handlers
+    AddressClaim, UserInfoData, UserInfoEndpointState, UserInfoProvider, UserInfoResponse,
+    userinfo_get_with_provider, userinfo_post_with_provider,
 };

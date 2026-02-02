@@ -55,3 +55,9 @@ pub use state::{OidcState, RealmProvider, TokenEndpointState};
 
 // Re-export token endpoint handlers
 pub use token::{token, token_with_sessions};
+
+// Re-export userinfo endpoint types and handlers
+pub use userinfo::{
+    AddressClaim, UserInfoData, UserInfoEndpointState, UserInfoProvider, UserInfoResponse,
+    userinfo_get_with_provider, userinfo_post_with_provider,
+};

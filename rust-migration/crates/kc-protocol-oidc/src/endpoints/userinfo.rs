@@ -1,6 +1,13 @@
 //! `UserInfo` endpoint handler.
 //!
 //! Implements GET/POST `/userinfo` for returning user claims.
+//!
+//! ## Enhanced UserInfo Endpoint
+//!
+//! For full user data retrieval, use the enhanced handlers with `UserInfoEndpointState`:
+//! - `userinfo_get_with_provider` / `userinfo_post_with_provider`
+//!
+//! These handlers look up actual user data from storage based on the access token.
 
 use axum::{
     Json,
@@ -10,10 +17,168 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
+use uuid::Uuid;
 
 use crate::error::{ErrorResponse, OidcError};
 
 use super::state::{OidcState, RealmProvider};
+
+// ============================================================================
+// UserInfo Provider Trait
+// ============================================================================
+
+/// User data for building UserInfo response.
+///
+/// This is a simplified view of the user suitable for the userinfo endpoint,
+/// containing only OIDC standard claims and custom attributes.
+#[derive(Debug, Clone, Default)]
+pub struct UserInfoData {
+    /// Subject identifier (user ID).
+    pub sub: String,
+
+    // === Profile scope ===
+    /// Full name.
+    pub name: Option<String>,
+    /// Given name (first name).
+    pub given_name: Option<String>,
+    /// Family name (last name).
+    pub family_name: Option<String>,
+    /// Middle name.
+    pub middle_name: Option<String>,
+    /// Nickname.
+    pub nickname: Option<String>,
+    /// Preferred username.
+    pub preferred_username: Option<String>,
+    /// Profile URL.
+    pub profile: Option<String>,
+    /// Picture URL.
+    pub picture: Option<String>,
+    /// Website URL.
+    pub website: Option<String>,
+    /// Gender.
+    pub gender: Option<String>,
+    /// Birthdate (YYYY-MM-DD).
+    pub birthdate: Option<String>,
+    /// Timezone (zoneinfo).
+    pub zoneinfo: Option<String>,
+    /// Locale.
+    pub locale: Option<String>,
+    /// Last updated timestamp (Unix seconds).
+    pub updated_at: Option<i64>,
+
+    // === Email scope ===
+    /// Email address.
+    pub email: Option<String>,
+    /// Whether email is verified.
+    pub email_verified: Option<bool>,
+
+    // === Phone scope ===
+    /// Phone number.
+    pub phone_number: Option<String>,
+    /// Whether phone is verified.
+    pub phone_number_verified: Option<bool>,
+
+    // === Address scope ===
+    /// Address claim.
+    pub address: Option<AddressClaim>,
+
+    // === Custom attributes ===
+    /// Custom claims from user attributes.
+    pub custom_claims: HashMap<String, serde_json::Value>,
+}
+
+/// Provider trait for retrieving user information.
+///
+/// Implement this trait to provide user data from your storage layer.
+#[async_trait::async_trait]
+pub trait UserInfoProvider: Send + Sync {
+    /// Retrieves user information by user ID.
+    ///
+    /// Returns `None` if the user is not found.
+    async fn get_user_info(
+        &self,
+        realm_name: &str,
+        user_id: Uuid,
+    ) -> Result<Option<UserInfoData>, OidcError>;
+
+    /// Retrieves user information with scope filtering.
+    ///
+    /// Only includes claims allowed by the granted scopes.
+    /// Default implementation calls `get_user_info` and filters.
+    async fn get_user_info_for_scopes(
+        &self,
+        realm_name: &str,
+        user_id: Uuid,
+        scopes: &[&str],
+    ) -> Result<Option<UserInfoData>, OidcError> {
+        let user_data = self.get_user_info(realm_name, user_id).await?;
+
+        Ok(user_data.map(|mut data| {
+            // Filter claims based on scopes
+            if !scopes.contains(&"profile") {
+                data.name = None;
+                data.given_name = None;
+                data.family_name = None;
+                data.middle_name = None;
+                data.nickname = None;
+                data.preferred_username = None;
+                data.profile = None;
+                data.picture = None;
+                data.website = None;
+                data.gender = None;
+                data.birthdate = None;
+                data.zoneinfo = None;
+                data.locale = None;
+                data.updated_at = None;
+            }
+
+            if !scopes.contains(&"email") {
+                data.email = None;
+                data.email_verified = None;
+            }
+
+            if !scopes.contains(&"phone") {
+                data.phone_number = None;
+                data.phone_number_verified = None;
+            }
+
+            if !scopes.contains(&"address") {
+                data.address = None;
+            }
+
+            data
+        }))
+    }
+}
+
+/// Enhanced state for UserInfo endpoint with user data provider.
+#[derive(Clone)]
+pub struct UserInfoEndpointState<R, U>
+where
+    R: RealmProvider,
+    U: UserInfoProvider,
+{
+    /// Realm provider for token validation.
+    pub realm_provider: Arc<R>,
+    /// User info provider for retrieving user data.
+    pub user_info_provider: Arc<U>,
+}
+
+impl<R, U> UserInfoEndpointState<R, U>
+where
+    R: RealmProvider,
+    U: UserInfoProvider,
+{
+    /// Creates a new UserInfo endpoint state.
+    #[allow(clippy::missing_const_for_fn)] // Can't be const: moves Arc
+    pub fn new(realm_provider: Arc<R>, user_info_provider: Arc<U>) -> Self {
+        Self {
+            realm_provider,
+            user_info_provider,
+        }
+    }
+}
 
 /// `UserInfo` response.
 ///
@@ -174,6 +339,124 @@ pub async fn userinfo_post<R: RealmProvider>(
     match handle_userinfo_request(&state, &realm, &headers).await {
         Ok(response) => (StatusCode::OK, Json(response)).into_response(),
         Err(ref err) => error_response(err),
+    }
+}
+
+// ============================================================================
+// Enhanced UserInfo Handlers (with user data provider)
+// ============================================================================
+
+/// GET `/userinfo` - Enhanced version with actual user data retrieval.
+///
+/// This handler retrieves user claims from the storage layer based on
+/// the validated access token.
+pub async fn userinfo_get_with_provider<R, U>(
+    State(state): State<UserInfoEndpointState<R, U>>,
+    Path(realm): Path<String>,
+    headers: HeaderMap,
+) -> impl IntoResponse
+where
+    R: RealmProvider + 'static,
+    U: UserInfoProvider + 'static,
+{
+    match handle_userinfo_with_provider(&state, &realm, &headers).await {
+        Ok(response) => (StatusCode::OK, Json(response)).into_response(),
+        Err(ref err) => error_response(err),
+    }
+}
+
+/// POST `/userinfo` - Enhanced version with actual user data retrieval.
+pub async fn userinfo_post_with_provider<R, U>(
+    State(state): State<UserInfoEndpointState<R, U>>,
+    Path(realm): Path<String>,
+    headers: HeaderMap,
+) -> impl IntoResponse
+where
+    R: RealmProvider + 'static,
+    U: UserInfoProvider + 'static,
+{
+    match handle_userinfo_with_provider(&state, &realm, &headers).await {
+        Ok(response) => (StatusCode::OK, Json(response)).into_response(),
+        Err(ref err) => error_response(err),
+    }
+}
+
+/// Handles the UserInfo request with actual user data retrieval.
+async fn handle_userinfo_with_provider<R, U>(
+    state: &UserInfoEndpointState<R, U>,
+    realm: &str,
+    headers: &HeaderMap,
+) -> Result<UserInfoResponse, OidcError>
+where
+    R: RealmProvider,
+    U: UserInfoProvider,
+{
+    // Check if realm exists
+    if !state.realm_provider.realm_exists(realm).await? {
+        return Err(OidcError::InvalidRequest(format!(
+            "realm '{realm}' does not exist"
+        )));
+    }
+
+    // Extract and validate access token
+    let access_token = extract_bearer_token(headers)?;
+
+    // Validate the access token
+    let token_manager = state.realm_provider.get_token_manager(realm).await?;
+    let claims = token_manager
+        .validate_access_token(&access_token)
+        .map_err(|e| OidcError::InvalidToken(e.to_string()))?;
+
+    // Check for openid scope
+    let scope = claims.scope.as_deref().unwrap_or("");
+    if !scope.contains("openid") {
+        return Err(OidcError::InsufficientScope(
+            "openid scope is required for userinfo endpoint".to_string(),
+        ));
+    }
+
+    // Parse the user ID from the subject claim
+    let user_id = Uuid::parse_str(&claims.sub)
+        .map_err(|_| OidcError::InvalidToken("invalid subject in token".to_string()))?;
+
+    // Parse scopes into a list
+    let scopes: Vec<&str> = scope.split_whitespace().collect();
+
+    // Retrieve user data from storage
+    let user_data = state
+        .user_info_provider
+        .get_user_info_for_scopes(realm, user_id, &scopes)
+        .await?
+        .ok_or_else(|| OidcError::InvalidToken("user not found".to_string()))?;
+
+    // Build the response
+    Ok(build_userinfo_response(user_data))
+}
+
+/// Builds a UserInfoResponse from UserInfoData.
+fn build_userinfo_response(data: UserInfoData) -> UserInfoResponse {
+    UserInfoResponse {
+        sub: data.sub,
+        name: data.name,
+        given_name: data.given_name,
+        family_name: data.family_name,
+        middle_name: data.middle_name,
+        nickname: data.nickname,
+        preferred_username: data.preferred_username,
+        profile: data.profile,
+        picture: data.picture,
+        website: data.website,
+        gender: data.gender,
+        birthdate: data.birthdate,
+        zoneinfo: data.zoneinfo,
+        locale: data.locale,
+        updated_at: data.updated_at,
+        email: data.email,
+        email_verified: data.email_verified,
+        phone_number: data.phone_number,
+        phone_number_verified: data.phone_number_verified,
+        address: data.address,
+        custom_claims: data.custom_claims,
     }
 }
 
