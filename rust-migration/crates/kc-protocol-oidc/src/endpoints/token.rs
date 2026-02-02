@@ -7,20 +7,36 @@
 //! - `password` (deprecated, but supported)
 //! - `urn:ietf:params:oauth:grant-type:device_code`
 //! - `urn:ietf:params:oauth:grant-type:token-exchange`
+//!
+//! ## Session-Aware Token Endpoint
+//!
+//! For full session management support, use [`token_with_sessions`] with
+//! [`TokenEndpointState`] which provides:
+//! - User session creation and validation
+//! - Client session tracking
+//! - Refresh token rotation with session binding
+//! - PKCE validation for authorization code flow
+
+use std::sync::Arc;
 
 use axum::{
     Form, Json,
-    extract::{Path, State},
+    extract::{ConnectInfo, Path, State},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
 };
+use kc_session::SessionProvider;
 
 use crate::error::{ErrorResponse, OidcError};
 use crate::request::TokenRequest;
 use crate::token::TokenResponse;
 use crate::types::GrantType;
 
-use super::state::{OidcState, RealmProvider};
+use super::grants::{
+    AuthCodeStore, AuthorizationCodeGrant, ClientAuthenticator, ClientCredentialsGrant,
+    GrantContext, PasswordGrant, RefreshTokenGrant, SessionTimeouts, UserAuthenticator,
+};
+use super::state::{OidcState, RealmProvider, TokenEndpointState};
 
 /// POST `/token`
 ///
@@ -53,7 +69,166 @@ pub async fn token<R: RealmProvider>(
     }
 }
 
-/// Handles the token request based on grant type.
+/// POST `/token` with full session management support.
+///
+/// This is the recommended token endpoint handler for production use. It provides:
+/// - Full client authentication (basic, post, `private_key_jwt`)
+/// - User session creation and management
+/// - Client session tracking
+/// - Refresh token rotation with session validation
+/// - PKCE support for authorization code flow
+///
+/// # Type Parameters
+///
+/// - `R`: Realm provider for realm-specific configuration
+/// - `S`: Session provider for session storage
+/// - `C`: Client authenticator implementation
+/// - `U`: User authenticator for password grant
+/// - `A`: Authorization code store
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use axum::Router;
+/// use kc_protocol_oidc::endpoints::{token_with_sessions, TokenEndpointState};
+///
+/// let state = TokenEndpointState::new(
+///     realm_provider,
+///     session_provider,
+///     client_authenticator,
+///     user_authenticator,
+///     auth_code_store,
+/// );
+///
+/// let app = Router::new()
+///     .route("/realms/:realm/protocol/openid-connect/token",
+///         axum::routing::post(token_with_sessions::<R, S, C, U, A>))
+///     .with_state(state);
+/// ```
+pub async fn token_with_sessions<R, S, C, U, A>(
+    State(state): State<TokenEndpointState<R, S, C, U, A>>,
+    Path(realm): Path<String>,
+    headers: HeaderMap,
+    ConnectInfo(addr): ConnectInfo<std::net::SocketAddr>,
+    Form(request): Form<TokenRequest>,
+) -> impl IntoResponse
+where
+    R: RealmProvider + 'static,
+    S: SessionProvider + 'static,
+    C: ClientAuthenticator + 'static,
+    U: UserAuthenticator + 'static,
+    A: AuthCodeStore + 'static,
+{
+    let client_ip = Some(addr.ip().to_string());
+    let user_agent = headers
+        .get("user-agent")
+        .and_then(|v| v.to_str().ok())
+        .map(String::from);
+
+    match handle_token_request_with_sessions(&state, &realm, &headers, &request, client_ip, user_agent).await {
+        Ok(response) => (StatusCode::OK, Json(response)).into_response(),
+        Err(ref err) => error_response(err),
+    }
+}
+
+/// Handles the token request with full session management.
+async fn handle_token_request_with_sessions<R, S, C, U, A>(
+    state: &TokenEndpointState<R, S, C, U, A>,
+    realm: &str,
+    headers: &HeaderMap,
+    request: &TokenRequest,
+    client_ip: Option<String>,
+    user_agent: Option<String>,
+) -> Result<TokenResponse, OidcError>
+where
+    R: RealmProvider + 'static,
+    S: SessionProvider + 'static,
+    C: ClientAuthenticator + 'static,
+    U: UserAuthenticator + 'static,
+    A: AuthCodeStore + 'static,
+{
+    // Check if realm exists
+    if !state.realm_provider.realm_exists(realm).await? {
+        return Err(OidcError::InvalidRequest(format!(
+            "realm '{realm}' does not exist"
+        )));
+    }
+
+    // Get realm ID for session operations
+    let realm_id = state.realm_provider.get_realm_id(realm).await?;
+
+    // Parse grant type
+    let grant_type = request
+        .parsed_grant_type()
+        .map_err(|_| OidcError::UnsupportedGrantType(request.grant_type.clone()))?;
+
+    // Extract client credentials from headers or form
+    let (oauth_client_id, oauth_client_secret) = extract_client_credentials(headers, request)?;
+
+    // Authenticate the client using the configured authenticator
+    let client = state
+        .client_authenticator
+        .authenticate(
+            realm,
+            &oauth_client_id,
+            oauth_client_secret.as_deref(),
+            request.client_assertion.as_deref(),
+            request.client_assertion_type.as_deref(),
+        )
+        .await?;
+
+    // Get the token manager for this realm
+    let token_manager = state.realm_provider.get_token_manager(realm).await?;
+
+    // Create grant context with session provider
+    let ctx = GrantContext::new(
+        realm,
+        realm_id,
+        request,
+        token_manager,
+        client,
+        Arc::clone(&state.session_provider),
+    )
+    .with_client_ip(client_ip)
+    .with_user_agent(user_agent);
+
+    // Handle based on grant type
+    match grant_type {
+        GrantType::AuthorizationCode => {
+            let handler = AuthorizationCodeGrant::new(Arc::clone(&state.auth_code_store));
+            let result = handler.handle(&ctx).await?;
+            Ok(result.token_response)
+        }
+        GrantType::ClientCredentials => {
+            let handler = ClientCredentialsGrant;
+            let result = handler.handle(&ctx)?;
+            Ok(result.token_response)
+        }
+        GrantType::RefreshToken => {
+            let handler = RefreshTokenGrant;
+            let timeouts = SessionTimeouts::default();
+            let result = handler.handle(&ctx, &timeouts).await?;
+            Ok(result.token_response)
+        }
+        GrantType::Password => {
+            let handler = PasswordGrant::new(Arc::clone(&state.user_authenticator));
+            let result = handler.handle(&ctx).await?;
+            Ok(result.token_response)
+        }
+        GrantType::DeviceCode => {
+            // Device code not yet implemented with sessions
+            Err(OidcError::AccessDenied("authorization_pending".to_string()))
+        }
+        GrantType::TokenExchange => {
+            // Token exchange not yet implemented
+            Err(OidcError::UnsupportedGrantType(
+                "token exchange not yet implemented".to_string(),
+            ))
+        }
+    }
+}
+
+/// Handles the token request based on grant type (simple version without sessions).
 async fn handle_token_request<R: RealmProvider>(
     state: &OidcState<R>,
     realm: &str,
@@ -400,6 +575,8 @@ mod tests {
             username: None,
             password: None,
             code_verifier: None,
+            client_assertion: None,
+            client_assertion_type: None,
             subject_token: None,
             subject_token_type: None,
             actor_token: None,
@@ -426,6 +603,8 @@ mod tests {
             username: None,
             password: None,
             code_verifier: None,
+            client_assertion: None,
+            client_assertion_type: None,
             subject_token: None,
             subject_token_type: None,
             actor_token: None,

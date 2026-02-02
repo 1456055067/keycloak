@@ -76,4 +76,6 @@ pub use endpoints::{
     extract_credentials, StorageClientAuthenticator, CLIENT_ASSERTION_TYPE_JWT,
     // State types
     OidcState, RealmProvider, TokenEndpointState,
+    // Token endpoint handlers
+    token, token_with_sessions,
 };

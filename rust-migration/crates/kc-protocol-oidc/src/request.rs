@@ -183,6 +183,15 @@ pub struct TokenRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub code_verifier: Option<String>,
 
+    // === Client Authentication (RFC 7523) ===
+    /// Client assertion JWT (for `private_key_jwt` authentication).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_assertion: Option<String>,
+
+    /// Client assertion type (must be `urn:ietf:params:oauth:client-assertion-type:jwt-bearer`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_assertion_type: Option<String>,
+
     // === Token Exchange Parameters (RFC 8693) ===
     /// Subject token.
     #[serde(skip_serializing_if = "Option::is_none")]

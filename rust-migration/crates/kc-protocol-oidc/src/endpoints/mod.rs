@@ -49,3 +49,6 @@ pub use client_auth::{extract_credentials, StorageClientAuthenticator, CLIENT_AS
 // Re-export the router and state
 pub use router::oidc_router;
 pub use state::{OidcState, RealmProvider, TokenEndpointState};
+
+// Re-export token endpoint handlers
+pub use token::{token, token_with_sessions};
