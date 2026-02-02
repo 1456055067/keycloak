@@ -1,0 +1,68 @@
+# Docker Compose configuration for OIDC Conformance Testing
+#
+# This sets up the official OpenID Foundation Conformance Test Suite
+# to test against our Keycloak Rust implementation.
+#
+# Usage:
+#   docker-compose up -d          # Start the conformance suite
+#   docker-compose logs -f        # View logs
+#   docker-compose down           # Stop everything
+#
+# The conformance suite UI will be available at http://localhost:9999
+
+services:
+  # PostgreSQL database for Keycloak Rust
+  postgres:
+    image: postgres:16-alpine
+    container_name: keycloak-postgres
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # MongoDB for OIDC Conformance Suite
+  mongodb:
+    image: mongo:6
+    container_name: oidc-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # OIDC Conformance Test Suite Server
+  conformance-server:
+    image: ghcr.io/openid-certification/conformance-suite:latest
+    container_name: oidc-conformance-server
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      - MONGODB_HOST=mongodb
+      - BASE_URL=http://localhost:9999
+      # For local development - disable in production
+      - DISABLE_SSL=true
+    ports:
+      - "9999:9999"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9999/api/runner/available"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
+  mongo_data:

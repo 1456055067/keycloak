@@ -17,6 +17,8 @@ members = [
     "crates/kc-admin-api",
     "crates/kc-server",
     "crates/kc-cli",
+    "tests/conformance",
+    "tests/integration",
 ]
 
 [workspace.package]

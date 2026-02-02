@@ -5,22 +5,26 @@
 #![forbid(unsafe_code)]
 #![deny(warnings)]
 
+use kc_server::{Server, ServerConfig};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Load configuration
+    let config = ServerConfig::from_env()?;
+
     // Initialize tracing
     tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "info".into()),
-        ))
+        .with(tracing_subscriber::EnvFilter::new(&config.log_level))
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    tracing::info!("Keycloak Rust starting...");
+    tracing::info!("Keycloak Rust v{}", env!("CARGO_PKG_VERSION"));
+    tracing::info!("Starting server on {}:{}", config.host, config.port);
 
-    // Server implementation will be added in later phases
-    tracing::info!("Server not yet implemented - Phase 1 complete");
+    // Create and run server
+    let server = Server::new(config).await?;
+    server.run().await?;
 
     Ok(())
 }

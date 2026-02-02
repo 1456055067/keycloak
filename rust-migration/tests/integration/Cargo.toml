@@ -1,0 +1,50 @@
+[package]
+name = "kc-integration-tests"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.92"
+publish = false
+description = "End-to-end integration tests for Keycloak Rust"
+
+[dependencies]
+# Test framework
+tokio = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# HTTP client
+reqwest = { version = "0.12", features = ["json", "cookies"] }
+url = { workspace = true }
+
+# JSON handling
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Database
+sqlx = { workspace = true }
+
+# JWT
+jsonwebtoken = { workspace = true }
+base64 = { workspace = true }
+
+# Utilities
+uuid = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+futures = { workspace = true }
+
+# Test containers
+testcontainers = { workspace = true }
+testcontainers-modules = { version = "0.13", features = ["postgres"] }
+
+# Internal crates
+kc-server = { workspace = true }
+kc-core = { workspace = true }
+kc-model = { workspace = true }
+kc-storage-sql = { workspace = true }
+kc-auth = { workspace = true }
+
+[[test]]
+name = "e2e"
+path = "tests/main.rs"

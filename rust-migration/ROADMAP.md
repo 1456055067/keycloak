@@ -378,15 +378,40 @@ let config = LdapConfig::builder()
 
 ---
 
-## Phase 7: Integration and Polish (4-6 weeks)
+## Phase 7: Server & Testing Infrastructure (4-6 weeks) ✅ IN PROGRESS
 
 **Team allocation**: Full team
 
 ### Deliverables
 
+- ✅ **kc-server crate** - Unified Axum server combining all services
+  - `Server` struct with database pool initialization
+  - `ServerConfig` with environment variable configuration
+  - `StorageProviders` implementing all OIDC provider traits
+  - Health check endpoints (`/health`, `/health/live`, `/health/ready`)
+  - Development signing keys (ES384 P-384 for CNSA 2.0)
+
+- ✅ **OIDC Conformance Test Suite** - Infrastructure for certification testing
+  - Config OP tests (discovery endpoint validation)
+  - Basic OP tests (Authorization Code flow)
+  - Implicit OP tests
+  - Hybrid OP tests
+  - Token endpoint tests (all grant types)
+  - UserInfo, Introspection, Revocation tests
+  - Docker Compose for official OpenID Foundation conformance suite
+  - Test harness with server lifecycle management
+
+- ✅ **End-to-End Integration Tests** - Using testcontainers
+  - Ephemeral PostgreSQL with automatic migrations
+  - Auth flow tests (client_credentials, password, refresh_token)
+  - Token operation tests (introspection, revocation)
+  - Admin API tests (health, discovery, JWKS)
+  - Common test utilities with database seeding
+
+### Remaining Work
+
 - Login/logout UI (basic Askama templates or SPA)
 - Account management UI
-- End-to-end testing
 - Performance optimization
 - Documentation
 - Docker/Kubernetes deployment configs

@@ -131,6 +131,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions CI workflow (.github/workflows/ci.yml)
 - Pre-commit hooks script (scripts/pre-commit)
 - Cargo audit configuration (.cargo/audit.toml)
+- kc-server: Unified Axum server crate combining all services
+- kc-server: ServerConfig with environment variable configuration
+- kc-server: StorageProviders implementing all OIDC provider traits (RealmProvider, ClientAuthenticator, UserAuthenticator, SessionProvider, AuthCodeStore)
+- kc-server: AppState for shared application state across handlers
+- kc-server: Router combining OIDC endpoints and health checks
+- kc-server: Health check endpoints (/health, /health/live, /health/ready)
+- kc-server: Development signing keys (ES384 P-384 curve for CNSA 2.0)
+- kc-server: In-memory session storage (InMemorySessionProvider)
+- kc-server: In-memory authorization code store (InMemoryAuthCodeStore)
+- kc-server: Password hashing integration with kc-auth
+- tests/conformance: OIDC Conformance Test Suite infrastructure
+- tests/conformance: Config OP tests (discovery endpoint validation)
+- tests/conformance: Basic OP tests (Authorization Code flow)
+- tests/conformance: Implicit OP tests (Implicit flow)
+- tests/conformance: Hybrid OP tests (Hybrid flows)
+- tests/conformance: Token endpoint tests (all grant types)
+- tests/conformance: UserInfo endpoint tests (RFC claims)
+- tests/conformance: Introspection tests (RFC 7662)
+- tests/conformance: Revocation tests (RFC 7009)
+- tests/conformance: Test harness with server lifecycle management
+- tests/conformance: PKCE and JWT utilities for testing
+- tests/conformance: Docker Compose for official OIDC conformance suite
+- tests/integration: End-to-end integration test infrastructure
+- tests/integration: Testcontainers support for ephemeral PostgreSQL
+- tests/integration: Auth flow tests (client_credentials, password, refresh_token)
+- tests/integration: Token operation tests (introspection, revocation)
+- tests/integration: Admin API tests (health endpoints, discovery, JWKS)
+- tests/integration: Common test utilities with database seeding
 
 ### Security
 

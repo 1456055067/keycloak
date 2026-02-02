@@ -1,0 +1,52 @@
+[package]
+name = "oidc-conformance-tests"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.92"
+publish = false
+description = "OIDC Conformance tests for Keycloak Rust"
+
+[dependencies]
+# Test framework
+tokio = { workspace = true }
+tokio-test = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# HTTP client for testing endpoints
+reqwest = { version = "0.12", features = ["json", "cookies"] }
+url = { workspace = true }
+
+# JSON handling
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# JWT validation
+jsonwebtoken = { workspace = true }
+base64 = { workspace = true }
+
+# Utilities
+uuid = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+sha2 = "0.10"
+rand = { workspace = true }
+
+# Test containers
+testcontainers = { workspace = true }
+
+# Internal crates
+kc-server = { workspace = true }
+kc-core = { workspace = true }
+kc-model = { workspace = true }
+kc-storage-sql = { workspace = true }
+
+[[test]]
+name = "oidc_conformance"
+path = "tests/main.rs"
+
+[features]
+default = []
+# Enable to run tests against the official OIDC conformance suite
+official-conformance = []
