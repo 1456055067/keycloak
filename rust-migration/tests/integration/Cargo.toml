@@ -5,6 +5,8 @@ edition = "2024"
 rust-version = "1.92"
 publish = false
 description = "End-to-end integration tests for Keycloak Rust"
+autobenches = false
+autotests = false
 
 [dependencies]
 # Test framework
@@ -21,7 +23,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 
 # Database
-sqlx = { workspace = true }
+sqlx = { workspace = true, features = ["migrate"] }
 
 # JWT
 jsonwebtoken = { workspace = true }
@@ -36,7 +38,7 @@ futures = { workspace = true }
 
 # Test containers
 testcontainers = { workspace = true }
-testcontainers-modules = { version = "0.13", features = ["postgres"] }
+testcontainers-modules = { version = "0.14", features = ["postgres"] }
 
 # Internal crates
 kc-server = { workspace = true }

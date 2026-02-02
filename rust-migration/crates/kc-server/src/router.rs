@@ -32,9 +32,9 @@ pub fn create_router(state: AppState) -> Router {
 
     // Create UI routes for login/logout
     let ui_routes = Router::new()
-        .route("/realms/:realm/login", get(ui::login_page).post(ui::login_submit))
+        .route("/realms/{realm}/login", get(ui::login_page).post(ui::login_submit))
         .route(
-            "/realms/:realm/protocol/openid-connect/logout",
+            "/realms/{realm}/protocol/openid-connect/logout",
             get(ui::logout_page).post(ui::logout_submit),
         )
         .with_state(state.clone());

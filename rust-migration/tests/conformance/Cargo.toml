@@ -5,6 +5,8 @@ edition = "2024"
 rust-version = "1.92"
 publish = false
 description = "OIDC Conformance tests for Keycloak Rust"
+autobenches = false
+autotests = false
 
 [dependencies]
 # Test framework

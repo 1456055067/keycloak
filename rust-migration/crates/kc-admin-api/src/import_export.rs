@@ -443,7 +443,15 @@ impl ImportOptions {
     /// Creates new import options with all defaults.
     #[must_use]
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            skip_existing: false,
+            overwrite_existing: false,
+            import_users: true,
+            import_clients: true,
+            import_roles: true,
+            import_groups: true,
+            import_credentials: false,
+        }
     }
 
     /// Sets whether to skip existing resources.
@@ -543,7 +551,14 @@ impl ExportOptions {
     /// Creates new export options with all defaults.
     #[must_use]
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            export_users: true,
+            export_clients: true,
+            export_roles: true,
+            export_groups: true,
+            export_credentials: false,
+            export_client_secrets: false,
+        }
     }
 
     /// Sets whether to export credentials.

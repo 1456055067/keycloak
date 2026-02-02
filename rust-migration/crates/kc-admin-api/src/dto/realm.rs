@@ -211,7 +211,7 @@ impl UpdateRealmRequest {
 }
 
 /// Full realm representation for API responses.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RealmRepresentation {
     /// Unique identifier.

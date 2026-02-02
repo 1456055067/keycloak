@@ -58,6 +58,8 @@ sqlx = { version = "0.8", default-features = false, features = [
     "chrono",
     "json",
     "derive",
+    "macros",
+    "migrate",
 ] }
 
 # Caching

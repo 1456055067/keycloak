@@ -1,7 +1,6 @@
 //! Common test utilities and fixtures.
 
 use std::net::TcpListener;
-use std::sync::Arc;
 use std::time::Duration;
 
 use reqwest::Client;
@@ -109,8 +108,8 @@ impl TestEnv {
         let id = uuid::Uuid::new_v4();
         sqlx::query(
             r#"
-            INSERT INTO realms (id, name, display_name, enabled, config, created_at, updated_at)
-            VALUES ($1, $2, $3, true, '{}', NOW(), NOW())
+            INSERT INTO realms (id, name, display_name, enabled, created_at, updated_at)
+            VALUES ($1, $2, $3, true, NOW(), NOW())
             "#,
         )
         .bind(id)
@@ -131,6 +130,8 @@ impl TestEnv {
         public: bool,
     ) -> anyhow::Result<uuid::Uuid> {
         let id = uuid::Uuid::new_v4();
+        let redirect_uris = serde_json::json!(["http://localhost:8080/callback"]);
+        let web_origins = serde_json::json!(["http://localhost:8080"]);
         sqlx::query(
             r#"
             INSERT INTO clients (
@@ -146,8 +147,8 @@ impl TestEnv {
         .bind(client_id)
         .bind(secret)
         .bind(public)
-        .bind(vec!["http://localhost:8080/callback"])
-        .bind(vec!["http://localhost:8080"])
+        .bind(&redirect_uris)
+        .bind(&web_origins)
         .execute(&self.pool)
         .await?;
 
@@ -182,7 +183,7 @@ impl TestEnv {
         .await?;
 
         // Hash password
-        let password_hash = kc_auth::password::PasswordHasherService::new()
+        let password_hash = kc_auth::password::PasswordHasherService::with_defaults()
             .hash(password)
             .map_err(|e| anyhow::anyhow!("Failed to hash password: {:?}", e))?;
 

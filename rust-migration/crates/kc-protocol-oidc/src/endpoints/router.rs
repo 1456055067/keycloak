@@ -20,13 +20,13 @@ use super::userinfo::{userinfo_get, userinfo_post};
 ///
 /// | Method   | Path                             | Handler     | Description                    |
 /// |----------|----------------------------------|-------------|--------------------------------|
-/// | GET      | `/:realm/.well-known/openid-configuration` | `well_known` | Discovery document     |
-/// | GET      | `/:realm/protocol/openid-connect/certs`    | `jwks`       | JSON Web Key Set       |
-/// | GET/POST | `/:realm/protocol/openid-connect/auth`     | `authorize`  | Authorization endpoint |
-/// | POST     | `/:realm/protocol/openid-connect/token`    | `token`      | Token endpoint         |
-/// | GET/POST | `/:realm/protocol/openid-connect/userinfo` | `userinfo`   | `UserInfo`             |
-/// | POST     | `/:realm/protocol/openid-connect/token/introspect` | `introspect` | Introspection |
-/// | POST     | `/:realm/protocol/openid-connect/revoke`   | `revoke`     | Token revocation       |
+/// | GET      | `/{realm}/.well-known/openid-configuration` | `well_known` | Discovery document     |
+/// | GET      | `/{realm}/protocol/openid-connect/certs`    | `jwks`       | JSON Web Key Set       |
+/// | GET/POST | `/{realm}/protocol/openid-connect/auth`     | `authorize`  | Authorization endpoint |
+/// | POST     | `/{realm}/protocol/openid-connect/token`    | `token`      | Token endpoint         |
+/// | GET/POST | `/{realm}/protocol/openid-connect/userinfo` | `userinfo`   | `UserInfo`             |
+/// | POST     | `/{realm}/protocol/openid-connect/token/introspect` | `introspect` | Introspection |
+/// | POST     | `/{realm}/protocol/openid-connect/revoke`   | `revoke`     | Token revocation       |
 ///
 /// # Usage
 ///
@@ -42,34 +42,34 @@ pub fn oidc_router<R: RealmProvider + Clone + 'static>() -> Router<OidcState<R>>
     Router::new()
         // Discovery endpoints
         .route(
-            "/realms/:realm/.well-known/openid-configuration",
+            "/realms/{realm}/.well-known/openid-configuration",
             get(well_known::<R>),
         )
         .route(
-            "/realms/:realm/protocol/openid-connect/certs",
+            "/realms/{realm}/protocol/openid-connect/certs",
             get(jwks::<R>),
         )
         // Authorization endpoint
         .route(
-            "/realms/:realm/protocol/openid-connect/auth",
+            "/realms/{realm}/protocol/openid-connect/auth",
             get(authorize_get::<R>).post(authorize_post::<R>),
         )
         // Token endpoints
         .route(
-            "/realms/:realm/protocol/openid-connect/token",
+            "/realms/{realm}/protocol/openid-connect/token",
             post(token::<R>),
         )
         .route(
-            "/realms/:realm/protocol/openid-connect/token/introspect",
+            "/realms/{realm}/protocol/openid-connect/token/introspect",
             post(introspect::<R>),
         )
         .route(
-            "/realms/:realm/protocol/openid-connect/revoke",
+            "/realms/{realm}/protocol/openid-connect/revoke",
             post(revoke::<R>),
         )
         // `UserInfo` endpoint
         .route(
-            "/realms/:realm/protocol/openid-connect/userinfo",
+            "/realms/{realm}/protocol/openid-connect/userinfo",
             get(userinfo_get::<R>).post(userinfo_post::<R>),
         )
 }
