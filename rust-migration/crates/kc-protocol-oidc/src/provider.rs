@@ -23,6 +23,7 @@
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
+use uuid::Uuid;
 
 use kc_model::{Client, Realm};
 use kc_storage::{ClientProvider, RealmProvider as StorageRealmProvider};
@@ -327,6 +328,14 @@ where
             .exists_by_name(realm_name)
             .await
             .map_err(|e| OidcError::Internal(format!("failed to check realm existence: {e}")))
+    }
+
+    async fn get_realm_id(&self, realm_name: &str) -> OidcResult<Uuid> {
+        let realm = self
+            .get_realm(realm_name)
+            .await?
+            .ok_or_else(|| OidcError::InvalidRequest(format!("realm '{realm_name}' not found")))?;
+        Ok(realm.id)
     }
 
     fn get_issuer(&self, realm_name: &str) -> String {
