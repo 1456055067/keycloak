@@ -35,6 +35,7 @@ pub mod discovery;
 pub mod endpoints;
 pub mod error;
 pub mod jwks;
+pub mod mapper;
 pub mod provider;
 pub mod request;
 pub mod token;
@@ -55,3 +56,12 @@ pub use types::{
     SubjectType, TokenType,
 };
 pub use provider::{OidcStorageProvider, ProviderConfig};
+pub use mapper::{
+    AccessTokenMapper, ClientInfo, ClaimValueType, ConfigProperty, ConfigPropertyType,
+    IdTokenMapper, IntrospectionMapper, MapperConfig, MapperContext, ProtocolMapper,
+    ProtocolMapperRegistry, SessionInfo, UserInfo, UserInfoMapper,
+    TokenType as MapperTokenType,
+    // Built-in mappers
+    AudienceMapper, ClientRoleMapper, GroupMembershipMapper, HardcodedClaimMapper,
+    RealmRoleMapper, UserAttributeMapper, UserPropertyMapper,
+};
