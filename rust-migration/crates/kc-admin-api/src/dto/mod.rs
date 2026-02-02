@@ -6,6 +6,7 @@
 
 pub mod client;
 pub mod realm;
+pub mod role;
 pub mod user;
 
 pub use client::{
@@ -14,6 +15,10 @@ pub use client::{
 };
 pub use realm::{
     CreateRealmRequest, RealmRepresentation, RealmSummary, UpdateRealmRequest,
+};
+pub use role::{
+    CompositeRolesRequest, CreateRoleRequest, RoleRepresentation, RoleSearchParams,
+    UpdateRoleRequest,
 };
 pub use user::{
     CreateUserRequest, UpdateUserRequest, UserRepresentation, UserSearchParams,

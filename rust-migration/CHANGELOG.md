@@ -84,7 +84,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - kc-admin-api: Client CRUD endpoints (GET/POST /admin/realms/{realm}/clients, GET/PUT/DELETE /admin/realms/{realm}/clients/{id})
 - kc-admin-api: Client secret management (GET/POST /admin/realms/{realm}/clients/{id}/client-secret)
 - kc-admin-api: Client search with query parameters (search, clientId, enabled, publicClient, pagination)
-- kc-admin-api: admin_router(), admin_client_router(), realm_router(), user_router(), client_router() for modular router composition
+- kc-admin-api: Role CRUD endpoints for realm roles (GET/POST /admin/realms/{realm}/roles, GET/PUT/DELETE /admin/realms/{realm}/roles/{role-name})
+- kc-admin-api: Composite roles management (GET/POST/DELETE /admin/realms/{realm}/roles/{role-name}/composites)
+- kc-admin-api: Client role CRUD endpoints (GET/POST /admin/realms/{realm}/clients/{id}/roles, GET/PUT/DELETE /admin/realms/{realm}/clients/{id}/roles/{role-name})
+- kc-admin-api: Role search with query parameters (search, pagination)
+- kc-admin-api: admin_router(), admin_client_router(), admin_role_router(), realm_router(), user_router(), client_router(), realm_role_router(), client_role_router() for modular router composition
 - kc-crypto: generate_client_secret() for OAuth 2.0 confidential client secrets
 - GitHub Actions CI workflow (.github/workflows/ci.yml)
 - Pre-commit hooks script (scripts/pre-commit)

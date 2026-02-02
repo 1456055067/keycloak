@@ -9,16 +9,16 @@ use axum::{
     response::IntoResponse,
     routing::{delete, get, post, put},
 };
-use kc_storage::{ClientProvider, CredentialProvider, RealmProvider, UserProvider};
+use kc_storage::{ClientProvider, CredentialProvider, RealmProvider, RoleProvider, UserProvider};
 
 use crate::dto::{
     ClientRepresentation, ClientSearchParams, ClientSecretResponse, CreateClientRequest,
-    CreateRealmRequest, CreateUserRequest, RealmRepresentation, RealmSummary,
-    UpdateClientRequest, UpdateRealmRequest, UpdateUserRequest, UserRepresentation,
-    UserSearchParams,
+    CreateRealmRequest, CreateRoleRequest, CreateUserRequest, RealmRepresentation, RealmSummary,
+    RoleRepresentation, RoleSearchParams, UpdateClientRequest, UpdateRealmRequest,
+    UpdateRoleRequest, UpdateUserRequest, UserRepresentation, UserSearchParams,
 };
 use crate::error::{AdminError, AdminResult};
-use crate::state::{ClientState, UserState};
+use crate::state::{ClientState, RoleState, UserState};
 
 // ============================================================================
 // Realm Handlers
@@ -638,6 +638,558 @@ where
 }
 
 // ============================================================================
+// Role Handlers
+// ============================================================================
+
+/// GET /admin/realms/{realm}/roles - List realm roles
+async fn get_realm_roles<R, C, Ro>(
+    State(state): State<RoleState<R, C, Ro>>,
+    Path(realm_name): Path<String>,
+    Query(params): Query<RoleSearchParams>,
+) -> AdminResult<Json<Vec<RoleRepresentation>>>
+where
+    R: RealmProvider,
+    C: ClientProvider,
+    Ro: RoleProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Search realm roles
+    let criteria = params.into_realm_criteria();
+    let roles = state.role_provider.search(realm.id, &criteria).await?;
+
+    // Convert to representations
+    let representations: Vec<RoleRepresentation> =
+        roles.into_iter().map(RoleRepresentation::from).collect();
+
+    Ok(Json(representations))
+}
+
+/// POST /admin/realms/{realm}/roles - Create a realm role
+async fn create_realm_role<R, C, Ro>(
+    State(state): State<RoleState<R, C, Ro>>,
+    Path(realm_name): Path<String>,
+    Json(request): Json<CreateRoleRequest>,
+) -> AdminResult<impl IntoResponse>
+where
+    R: RealmProvider,
+    C: ClientProvider,
+    Ro: RoleProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Validate role name
+    if request.name.is_empty() {
+        return Err(AdminError::Validation(
+            "Role name cannot be empty".to_string(),
+        ));
+    }
+
+    // Check for duplicate role name
+    if state
+        .role_provider
+        .get_realm_role_by_name(realm.id, &request.name)
+        .await?
+        .is_some()
+    {
+        return Err(AdminError::conflict("Role", "name", &request.name));
+    }
+
+    // Convert to domain model
+    let role = request.into_realm_role(realm.id);
+    let role_name = role.name.clone();
+
+    // Create the role
+    state.role_provider.create(&role).await.map_err(|e| {
+        if e.is_duplicate() {
+            AdminError::conflict("Role", "name", &role_name)
+        } else {
+            AdminError::from(e)
+        }
+    })?;
+
+    // Return 201 Created with Location header
+    Ok((
+        StatusCode::CREATED,
+        [(
+            "Location",
+            format!("/admin/realms/{}/roles/{}", realm_name, role_name),
+        )],
+    ))
+}
+
+/// GET /admin/realms/{realm}/roles/{role-name} - Get realm role by name
+async fn get_realm_role<R, C, Ro>(
+    State(state): State<RoleState<R, C, Ro>>,
+    Path((realm_name, role_name)): Path<(String, String)>,
+) -> AdminResult<Json<RoleRepresentation>>
+where
+    R: RealmProvider,
+    C: ClientProvider,
+    Ro: RoleProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Get role
+    let role = state
+        .role_provider
+        .get_realm_role_by_name(realm.id, &role_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Role", &role_name))?;
+
+    Ok(Json(RoleRepresentation::from(role)))
+}
+
+/// PUT /admin/realms/{realm}/roles/{role-name} - Update a realm role
+async fn update_realm_role<R, C, Ro>(
+    State(state): State<RoleState<R, C, Ro>>,
+    Path((realm_name, role_name)): Path<(String, String)>,
+    Json(request): Json<UpdateRoleRequest>,
+) -> AdminResult<impl IntoResponse>
+where
+    R: RealmProvider,
+    C: ClientProvider,
+    Ro: RoleProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Get existing role
+    let mut role = state
+        .role_provider
+        .get_realm_role_by_name(realm.id, &role_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Role", &role_name))?;
+
+    // Check for name conflict if changing name
+    if let Some(ref new_name) = request.name {
+        if new_name != &role.name {
+            if state
+                .role_provider
+                .get_realm_role_by_name(realm.id, new_name)
+                .await?
+                .is_some()
+            {
+                return Err(AdminError::conflict("Role", "name", new_name));
+            }
+        }
+    }
+
+    // Apply updates
+    request.apply_to(&mut role);
+
+    // Save updates
+    state.role_provider.update(&role).await?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// DELETE /admin/realms/{realm}/roles/{role-name} - Delete a realm role
+async fn delete_realm_role<R, C, Ro>(
+    State(state): State<RoleState<R, C, Ro>>,
+    Path((realm_name, role_name)): Path<(String, String)>,
+) -> AdminResult<impl IntoResponse>
+where
+    R: RealmProvider,
+    C: ClientProvider,
+    Ro: RoleProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Get role to get its ID
+    let role = state
+        .role_provider
+        .get_realm_role_by_name(realm.id, &role_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Role", &role_name))?;
+
+    // Delete the role
+    state.role_provider.delete(realm.id, role.id).await?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// GET /admin/realms/{realm}/roles/{role-name}/composites - Get composite roles
+async fn get_realm_role_composites<R, C, Ro>(
+    State(state): State<RoleState<R, C, Ro>>,
+    Path((realm_name, role_name)): Path<(String, String)>,
+) -> AdminResult<Json<Vec<RoleRepresentation>>>
+where
+    R: RealmProvider,
+    C: ClientProvider,
+    Ro: RoleProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Get role
+    let role = state
+        .role_provider
+        .get_realm_role_by_name(realm.id, &role_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Role", &role_name))?;
+
+    // Get composites
+    let composites = state.role_provider.get_composites(realm.id, role.id).await?;
+
+    let representations: Vec<RoleRepresentation> = composites
+        .into_iter()
+        .map(RoleRepresentation::from)
+        .collect();
+
+    Ok(Json(representations))
+}
+
+/// POST /admin/realms/{realm}/roles/{role-name}/composites - Add composite roles
+async fn add_realm_role_composites<R, C, Ro>(
+    State(state): State<RoleState<R, C, Ro>>,
+    Path((realm_name, role_name)): Path<(String, String)>,
+    Json(request): Json<Vec<RoleRepresentation>>,
+) -> AdminResult<impl IntoResponse>
+where
+    R: RealmProvider,
+    C: ClientProvider,
+    Ro: RoleProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Get composite role
+    let role = state
+        .role_provider
+        .get_realm_role_by_name(realm.id, &role_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Role", &role_name))?;
+
+    // Add each role as a composite
+    for role_repr in request {
+        state
+            .role_provider
+            .add_composite(realm.id, role.id, role_repr.id)
+            .await?;
+    }
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// DELETE /admin/realms/{realm}/roles/{role-name}/composites - Remove composite roles
+async fn remove_realm_role_composites<R, C, Ro>(
+    State(state): State<RoleState<R, C, Ro>>,
+    Path((realm_name, role_name)): Path<(String, String)>,
+    Json(request): Json<Vec<RoleRepresentation>>,
+) -> AdminResult<impl IntoResponse>
+where
+    R: RealmProvider,
+    C: ClientProvider,
+    Ro: RoleProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Get composite role
+    let role = state
+        .role_provider
+        .get_realm_role_by_name(realm.id, &role_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Role", &role_name))?;
+
+    // Remove each role from composites
+    for role_repr in request {
+        state
+            .role_provider
+            .remove_composite(realm.id, role.id, role_repr.id)
+            .await?;
+    }
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+// ============================================================================
+// Client Role Handlers
+// ============================================================================
+
+/// GET /admin/realms/{realm}/clients/{id}/roles - List client roles
+async fn get_client_roles<R, C, Ro>(
+    State(state): State<RoleState<R, C, Ro>>,
+    Path((realm_name, client_id)): Path<(String, uuid::Uuid)>,
+    Query(params): Query<RoleSearchParams>,
+) -> AdminResult<Json<Vec<RoleRepresentation>>>
+where
+    R: RealmProvider,
+    C: ClientProvider,
+    Ro: RoleProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Validate client exists
+    if state
+        .client_provider
+        .get_by_id(realm.id, client_id)
+        .await?
+        .is_none()
+    {
+        return Err(AdminError::not_found_id("Client", client_id));
+    }
+
+    // Search client roles
+    let criteria = params.into_client_criteria(client_id);
+    let roles = state.role_provider.search(realm.id, &criteria).await?;
+
+    // Convert to representations
+    let representations: Vec<RoleRepresentation> =
+        roles.into_iter().map(RoleRepresentation::from).collect();
+
+    Ok(Json(representations))
+}
+
+/// POST /admin/realms/{realm}/clients/{id}/roles - Create a client role
+async fn create_client_role<R, C, Ro>(
+    State(state): State<RoleState<R, C, Ro>>,
+    Path((realm_name, client_id)): Path<(String, uuid::Uuid)>,
+    Json(request): Json<CreateRoleRequest>,
+) -> AdminResult<impl IntoResponse>
+where
+    R: RealmProvider,
+    C: ClientProvider,
+    Ro: RoleProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Validate client exists
+    if state
+        .client_provider
+        .get_by_id(realm.id, client_id)
+        .await?
+        .is_none()
+    {
+        return Err(AdminError::not_found_id("Client", client_id));
+    }
+
+    // Validate role name
+    if request.name.is_empty() {
+        return Err(AdminError::Validation(
+            "Role name cannot be empty".to_string(),
+        ));
+    }
+
+    // Check for duplicate role name
+    if state
+        .role_provider
+        .get_client_role_by_name(realm.id, client_id, &request.name)
+        .await?
+        .is_some()
+    {
+        return Err(AdminError::conflict("Role", "name", &request.name));
+    }
+
+    // Convert to domain model
+    let role = request.into_client_role(realm.id, client_id);
+    let role_name = role.name.clone();
+
+    // Create the role
+    state.role_provider.create(&role).await.map_err(|e| {
+        if e.is_duplicate() {
+            AdminError::conflict("Role", "name", &role_name)
+        } else {
+            AdminError::from(e)
+        }
+    })?;
+
+    // Return 201 Created with Location header
+    Ok((
+        StatusCode::CREATED,
+        [(
+            "Location",
+            format!(
+                "/admin/realms/{}/clients/{}/roles/{}",
+                realm_name, client_id, role_name
+            ),
+        )],
+    ))
+}
+
+/// GET /admin/realms/{realm}/clients/{id}/roles/{role-name} - Get client role by name
+async fn get_client_role<R, C, Ro>(
+    State(state): State<RoleState<R, C, Ro>>,
+    Path((realm_name, client_id, role_name)): Path<(String, uuid::Uuid, String)>,
+) -> AdminResult<Json<RoleRepresentation>>
+where
+    R: RealmProvider,
+    C: ClientProvider,
+    Ro: RoleProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Validate client exists
+    if state
+        .client_provider
+        .get_by_id(realm.id, client_id)
+        .await?
+        .is_none()
+    {
+        return Err(AdminError::not_found_id("Client", client_id));
+    }
+
+    // Get role
+    let role = state
+        .role_provider
+        .get_client_role_by_name(realm.id, client_id, &role_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Role", &role_name))?;
+
+    Ok(Json(RoleRepresentation::from(role)))
+}
+
+/// PUT /admin/realms/{realm}/clients/{id}/roles/{role-name} - Update a client role
+async fn update_client_role<R, C, Ro>(
+    State(state): State<RoleState<R, C, Ro>>,
+    Path((realm_name, client_id, role_name)): Path<(String, uuid::Uuid, String)>,
+    Json(request): Json<UpdateRoleRequest>,
+) -> AdminResult<impl IntoResponse>
+where
+    R: RealmProvider,
+    C: ClientProvider,
+    Ro: RoleProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Validate client exists
+    if state
+        .client_provider
+        .get_by_id(realm.id, client_id)
+        .await?
+        .is_none()
+    {
+        return Err(AdminError::not_found_id("Client", client_id));
+    }
+
+    // Get existing role
+    let mut role = state
+        .role_provider
+        .get_client_role_by_name(realm.id, client_id, &role_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Role", &role_name))?;
+
+    // Check for name conflict if changing name
+    if let Some(ref new_name) = request.name {
+        if new_name != &role.name {
+            if state
+                .role_provider
+                .get_client_role_by_name(realm.id, client_id, new_name)
+                .await?
+                .is_some()
+            {
+                return Err(AdminError::conflict("Role", "name", new_name));
+            }
+        }
+    }
+
+    // Apply updates
+    request.apply_to(&mut role);
+
+    // Save updates
+    state.role_provider.update(&role).await?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// DELETE /admin/realms/{realm}/clients/{id}/roles/{role-name} - Delete a client role
+async fn delete_client_role<R, C, Ro>(
+    State(state): State<RoleState<R, C, Ro>>,
+    Path((realm_name, client_id, role_name)): Path<(String, uuid::Uuid, String)>,
+) -> AdminResult<impl IntoResponse>
+where
+    R: RealmProvider,
+    C: ClientProvider,
+    Ro: RoleProvider,
+{
+    // Validate realm exists
+    let realm = state
+        .realm_provider
+        .get_by_name(&realm_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Realm", &realm_name))?;
+
+    // Validate client exists
+    if state
+        .client_provider
+        .get_by_id(realm.id, client_id)
+        .await?
+        .is_none()
+    {
+        return Err(AdminError::not_found_id("Client", client_id));
+    }
+
+    // Get role to get its ID
+    let role = state
+        .role_provider
+        .get_client_role_by_name(realm.id, client_id, &role_name)
+        .await?
+        .ok_or_else(|| AdminError::not_found("Role", &role_name))?;
+
+    // Delete the role
+    state.role_provider.delete(realm.id, role.id).await?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+// ============================================================================
 // Router Construction
 // ============================================================================
 
@@ -835,4 +1387,169 @@ where
         .route("/{id}", delete(delete_client::<R, C>))
         .route("/{id}/client-secret", get(get_client_secret::<R, C>))
         .route("/{id}/client-secret", post(regenerate_client_secret::<R, C>))
+}
+
+/// Creates the Admin API router for role operations.
+///
+/// # Routes
+///
+/// ## Realm Roles
+/// - `GET /admin/realms/{realm}/roles` - List realm roles
+/// - `POST /admin/realms/{realm}/roles` - Create a realm role
+/// - `GET /admin/realms/{realm}/roles/{role-name}` - Get realm role by name
+/// - `PUT /admin/realms/{realm}/roles/{role-name}` - Update a realm role
+/// - `DELETE /admin/realms/{realm}/roles/{role-name}` - Delete a realm role
+/// - `GET /admin/realms/{realm}/roles/{role-name}/composites` - Get composite roles
+/// - `POST /admin/realms/{realm}/roles/{role-name}/composites` - Add composite roles
+/// - `DELETE /admin/realms/{realm}/roles/{role-name}/composites` - Remove composite roles
+///
+/// ## Client Roles
+/// - `GET /admin/realms/{realm}/clients/{id}/roles` - List client roles
+/// - `POST /admin/realms/{realm}/clients/{id}/roles` - Create a client role
+/// - `GET /admin/realms/{realm}/clients/{id}/roles/{role-name}` - Get client role by name
+/// - `PUT /admin/realms/{realm}/clients/{id}/roles/{role-name}` - Update a client role
+/// - `DELETE /admin/realms/{realm}/clients/{id}/roles/{role-name}` - Delete a client role
+///
+/// # Example
+///
+/// ```ignore
+/// use kc_admin_api::{admin_role_router, RoleState};
+/// use std::sync::Arc;
+///
+/// let state = RoleState::new(
+///     Arc::new(realm_provider),
+///     Arc::new(client_provider),
+///     Arc::new(role_provider),
+/// );
+///
+/// let app = admin_role_router().with_state(state);
+/// ```
+pub fn admin_role_router<R, C, Ro>() -> Router<RoleState<R, C, Ro>>
+where
+    R: RealmProvider + 'static,
+    C: ClientProvider + 'static,
+    Ro: RoleProvider + 'static,
+{
+    Router::new()
+        // Realm role endpoints
+        .route(
+            "/admin/realms/{realm}/roles",
+            get(get_realm_roles::<R, C, Ro>),
+        )
+        .route(
+            "/admin/realms/{realm}/roles",
+            post(create_realm_role::<R, C, Ro>),
+        )
+        .route(
+            "/admin/realms/{realm}/roles/{role_name}",
+            get(get_realm_role::<R, C, Ro>),
+        )
+        .route(
+            "/admin/realms/{realm}/roles/{role_name}",
+            put(update_realm_role::<R, C, Ro>),
+        )
+        .route(
+            "/admin/realms/{realm}/roles/{role_name}",
+            delete(delete_realm_role::<R, C, Ro>),
+        )
+        .route(
+            "/admin/realms/{realm}/roles/{role_name}/composites",
+            get(get_realm_role_composites::<R, C, Ro>),
+        )
+        .route(
+            "/admin/realms/{realm}/roles/{role_name}/composites",
+            post(add_realm_role_composites::<R, C, Ro>),
+        )
+        .route(
+            "/admin/realms/{realm}/roles/{role_name}/composites",
+            delete(remove_realm_role_composites::<R, C, Ro>),
+        )
+        // Client role endpoints
+        .route(
+            "/admin/realms/{realm}/clients/{client_id}/roles",
+            get(get_client_roles::<R, C, Ro>),
+        )
+        .route(
+            "/admin/realms/{realm}/clients/{client_id}/roles",
+            post(create_client_role::<R, C, Ro>),
+        )
+        .route(
+            "/admin/realms/{realm}/clients/{client_id}/roles/{role_name}",
+            get(get_client_role::<R, C, Ro>),
+        )
+        .route(
+            "/admin/realms/{realm}/clients/{client_id}/roles/{role_name}",
+            put(update_client_role::<R, C, Ro>),
+        )
+        .route(
+            "/admin/realms/{realm}/clients/{client_id}/roles/{role_name}",
+            delete(delete_client_role::<R, C, Ro>),
+        )
+}
+
+/// Creates a standalone realm role router (for modular composition).
+///
+/// Note: This router expects to be nested under a path that includes the realm,
+/// e.g., `/admin/realms/{realm}/roles`.
+///
+/// # Routes
+///
+/// - `GET /` - List realm roles
+/// - `POST /` - Create a realm role
+/// - `GET /{role-name}` - Get realm role by name
+/// - `PUT /{role-name}` - Update a realm role
+/// - `DELETE /{role-name}` - Delete a realm role
+/// - `GET /{role-name}/composites` - Get composite roles
+/// - `POST /{role-name}/composites` - Add composite roles
+/// - `DELETE /{role-name}/composites` - Remove composite roles
+pub fn realm_role_router<R, C, Ro>() -> Router<RoleState<R, C, Ro>>
+where
+    R: RealmProvider + 'static,
+    C: ClientProvider + 'static,
+    Ro: RoleProvider + 'static,
+{
+    Router::new()
+        .route("/", get(get_realm_roles::<R, C, Ro>))
+        .route("/", post(create_realm_role::<R, C, Ro>))
+        .route("/{role_name}", get(get_realm_role::<R, C, Ro>))
+        .route("/{role_name}", put(update_realm_role::<R, C, Ro>))
+        .route("/{role_name}", delete(delete_realm_role::<R, C, Ro>))
+        .route(
+            "/{role_name}/composites",
+            get(get_realm_role_composites::<R, C, Ro>),
+        )
+        .route(
+            "/{role_name}/composites",
+            post(add_realm_role_composites::<R, C, Ro>),
+        )
+        .route(
+            "/{role_name}/composites",
+            delete(remove_realm_role_composites::<R, C, Ro>),
+        )
+}
+
+/// Creates a standalone client role router (for modular composition).
+///
+/// Note: This router expects to be nested under a path that includes the realm
+/// and client, e.g., `/admin/realms/{realm}/clients/{id}/roles`.
+///
+/// # Routes
+///
+/// - `GET /` - List client roles
+/// - `POST /` - Create a client role
+/// - `GET /{role-name}` - Get client role by name
+/// - `PUT /{role-name}` - Update a client role
+/// - `DELETE /{role-name}` - Delete a client role
+pub fn client_role_router<R, C, Ro>() -> Router<RoleState<R, C, Ro>>
+where
+    R: RealmProvider + 'static,
+    C: ClientProvider + 'static,
+    Ro: RoleProvider + 'static,
+{
+    Router::new()
+        .route("/", get(get_client_roles::<R, C, Ro>))
+        .route("/", post(create_client_role::<R, C, Ro>))
+        .route("/{role_name}", get(get_client_role::<R, C, Ro>))
+        .route("/{role_name}", put(update_client_role::<R, C, Ro>))
+        .route("/{role_name}", delete(delete_client_role::<R, C, Ro>))
 }

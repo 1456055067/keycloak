@@ -73,6 +73,24 @@
 //! | DELETE | `/admin/realms/{realm}/clients/{id}` | Delete a client |
 //! | GET | `/admin/realms/{realm}/clients/{id}/client-secret` | Get client secret |
 //! | POST | `/admin/realms/{realm}/clients/{id}/client-secret` | Regenerate client secret |
+//!
+//! ### Roles
+//!
+//! | Method | Path | Description |
+//! |--------|------|-------------|
+//! | GET | `/admin/realms/{realm}/roles` | List realm roles |
+//! | POST | `/admin/realms/{realm}/roles` | Create a realm role |
+//! | GET | `/admin/realms/{realm}/roles/{role-name}` | Get realm role by name |
+//! | PUT | `/admin/realms/{realm}/roles/{role-name}` | Update a realm role |
+//! | DELETE | `/admin/realms/{realm}/roles/{role-name}` | Delete a realm role |
+//! | GET | `/admin/realms/{realm}/roles/{role-name}/composites` | Get composite roles |
+//! | POST | `/admin/realms/{realm}/roles/{role-name}/composites` | Add composite roles |
+//! | DELETE | `/admin/realms/{realm}/roles/{role-name}/composites` | Remove composite roles |
+//! | GET | `/admin/realms/{realm}/clients/{id}/roles` | List client roles |
+//! | POST | `/admin/realms/{realm}/clients/{id}/roles` | Create a client role |
+//! | GET | `/admin/realms/{realm}/clients/{id}/roles/{role-name}` | Get client role by name |
+//! | PUT | `/admin/realms/{realm}/clients/{id}/roles/{role-name}` | Update a client role |
+//! | DELETE | `/admin/realms/{realm}/clients/{id}/roles/{role-name}` | Delete a client role |
 
 #![forbid(unsafe_code)]
 #![deny(warnings)]
@@ -86,10 +104,14 @@ pub mod state;
 // Re-export commonly used types
 pub use dto::{
     ClientRepresentation, ClientSearchParams, ClientSecretResponse, ClientSummary,
-    CreateClientRequest, CreateRealmRequest, CreateUserRequest, RealmRepresentation, RealmSummary,
-    UpdateClientRequest, UpdateRealmRequest, UpdateUserRequest, UserRepresentation,
-    UserSearchParams,
+    CompositeRolesRequest, CreateClientRequest, CreateRealmRequest, CreateRoleRequest,
+    CreateUserRequest, RealmRepresentation, RealmSummary, RoleRepresentation, RoleSearchParams,
+    UpdateClientRequest, UpdateRealmRequest, UpdateRoleRequest, UpdateUserRequest,
+    UserRepresentation, UserSearchParams,
 };
 pub use error::{AdminError, AdminResult, ErrorResponse};
-pub use router::{admin_client_router, admin_router, client_router, realm_router, user_router};
-pub use state::{AdminState, ClientState, RealmState, UserState};
+pub use router::{
+    admin_client_router, admin_role_router, admin_router, client_role_router, client_router,
+    realm_role_router, realm_router, user_router,
+};
+pub use state::{AdminState, ClientState, RealmState, RoleState, UserState};

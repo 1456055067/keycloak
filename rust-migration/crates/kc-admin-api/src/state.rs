@@ -202,3 +202,53 @@ where
         }
     }
 }
+
+/// State for role operations (requires realm and client context).
+pub struct RoleState<R, C, Ro>
+where
+    R: RealmProvider,
+    C: ClientProvider,
+    Ro: RoleProvider,
+{
+    /// Realm storage provider (for realm validation).
+    pub realm_provider: Arc<R>,
+    /// Client storage provider (for client role operations).
+    pub client_provider: Arc<C>,
+    /// Role storage provider.
+    pub role_provider: Arc<Ro>,
+}
+
+impl<R, C, Ro> Clone for RoleState<R, C, Ro>
+where
+    R: RealmProvider,
+    C: ClientProvider,
+    Ro: RoleProvider,
+{
+    fn clone(&self) -> Self {
+        Self {
+            realm_provider: Arc::clone(&self.realm_provider),
+            client_provider: Arc::clone(&self.client_provider),
+            role_provider: Arc::clone(&self.role_provider),
+        }
+    }
+}
+
+impl<R, C, Ro> RoleState<R, C, Ro>
+where
+    R: RealmProvider,
+    C: ClientProvider,
+    Ro: RoleProvider,
+{
+    /// Creates a new role state.
+    pub fn new(
+        realm_provider: Arc<R>,
+        client_provider: Arc<C>,
+        role_provider: Arc<Ro>,
+    ) -> Self {
+        Self {
+            realm_provider,
+            client_provider,
+            role_provider,
+        }
+    }
+}

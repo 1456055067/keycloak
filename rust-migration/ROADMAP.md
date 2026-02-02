@@ -257,7 +257,7 @@ pub fn oidc_router() -> Router<AppState> {
 - ✅ Realm CRUD endpoints (list, create, get, update, delete)
 - ✅ User CRUD endpoints (list/search, create, get, update, delete)
 - ✅ Client CRUD endpoints (list/search, create, get, update, delete, client-secret)
-- ⬜ Role CRUD endpoints
+- ✅ Role CRUD endpoints (realm roles, client roles, composite roles)
 - ⬜ Group CRUD endpoints
 - ⬜ Permission/authorization system
 - ⬜ Event logging
@@ -285,6 +285,21 @@ PUT    /admin/realms/{realm}/clients/{id}               - Update client
 DELETE /admin/realms/{realm}/clients/{id}               - Delete client
 GET    /admin/realms/{realm}/clients/{id}/client-secret - Get client secret
 POST   /admin/realms/{realm}/clients/{id}/client-secret - Regenerate client secret
+
+GET    /admin/realms/{realm}/roles                           - List realm roles
+POST   /admin/realms/{realm}/roles                           - Create realm role
+GET    /admin/realms/{realm}/roles/{role-name}               - Get realm role by name
+PUT    /admin/realms/{realm}/roles/{role-name}               - Update realm role
+DELETE /admin/realms/{realm}/roles/{role-name}               - Delete realm role
+GET    /admin/realms/{realm}/roles/{role-name}/composites    - Get composite roles
+POST   /admin/realms/{realm}/roles/{role-name}/composites    - Add composite roles
+DELETE /admin/realms/{realm}/roles/{role-name}/composites    - Remove composite roles
+
+GET    /admin/realms/{realm}/clients/{id}/roles              - List client roles
+POST   /admin/realms/{realm}/clients/{id}/roles              - Create client role
+GET    /admin/realms/{realm}/clients/{id}/roles/{role-name}  - Get client role
+PUT    /admin/realms/{realm}/clients/{id}/roles/{role-name}  - Update client role
+DELETE /admin/realms/{realm}/clients/{id}/roles/{role-name}  - Delete client role
 ```
 
 ### Java Files to Reference
