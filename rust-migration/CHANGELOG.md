@@ -65,6 +65,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - kc-protocol-oidc: OidcStorageProvider - storage-backed RealmProvider implementation
 - kc-protocol-oidc: ProviderConfig for configuring base URL and token lifespans
 - kc-protocol-oidc: Integration with kc-storage for realm and client data access
+- kc-protocol-oidc: Protocol Mappers SPI with built-in mappers (UserAttribute, UserProperty, RealmRole, ClientRole, GroupMembership, HardcodedClaim, Audience)
+- kc-protocol-oidc: Enhanced authorization endpoint with session, client lookup, and code storage integration
+- kc-protocol-oidc: ClientProvider trait for client lookup and redirect URI validation
+- kc-protocol-oidc: Cryptographic random code generation (kc-crypto random module)
+- kc-protocol-oidc: PKCE enforcement for public clients
+- kc-protocol-oidc: Enhanced UserInfo endpoint with UserInfoProvider trait and scope-based claim filtering
+- kc-protocol-oidc: Enhanced Introspection endpoint with ClientAuthenticator (RFC 7662)
+- kc-protocol-oidc: Enhanced Revocation endpoint with TokenBlocklist trait (RFC 7009)
+- kc-crypto: Random number generation module (generate_auth_code, random_bytes, random_alphanumeric, etc.)
+- kc-admin-api: Admin REST API crate structure
+- kc-admin-api: Error types with HTTP status code mapping (AdminError, ErrorResponse)
+- kc-admin-api: DTO types for API requests/responses (CreateRealmRequest, RealmRepresentation, etc.)
+- kc-admin-api: State management with storage provider integration (AdminState, UserState, RealmState)
+- kc-admin-api: Realm CRUD endpoints (GET/POST /admin/realms, GET/PUT/DELETE /admin/realms/{realm})
+- kc-admin-api: User CRUD endpoints (GET/POST /admin/realms/{realm}/users, GET/PUT/DELETE /admin/realms/{realm}/users/{id})
+- kc-admin-api: User search with query parameters (search, username, email, enabled, pagination)
+- kc-admin-api: admin_router(), realm_router(), user_router() for modular router composition
 - GitHub Actions CI workflow (.github/workflows/ci.yml)
 - Pre-commit hooks script (scripts/pre-commit)
 - Cargo audit configuration (.cargo/audit.toml)

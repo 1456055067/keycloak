@@ -247,17 +247,37 @@ pub fn oidc_router() -> Router<AppState> {
 
 ---
 
-## Phase 5: Admin API (6-8 weeks)
+## Phase 5: Admin API (6-8 weeks) 🚧 IN PROGRESS
 
 **Team allocation**: 2 developers (parallel with Phase 4)
 
 ### Deliverables
 
-- RESTful Admin API (new design, inspired by Keycloak)
-- Permission/authorization system
-- CRUD operations (realms, users, clients, groups, roles)
-- Event logging
-- Import/export (JSON format)
+- ✅ Admin API crate structure (error types, DTOs, state management)
+- ✅ Realm CRUD endpoints (list, create, get, update, delete)
+- ✅ User CRUD endpoints (list/search, create, get, update, delete)
+- ⬜ Client CRUD endpoints
+- ⬜ Role CRUD endpoints
+- ⬜ Group CRUD endpoints
+- ⬜ Permission/authorization system
+- ⬜ Event logging
+- ⬜ Import/export (JSON format)
+
+### API Endpoints Implemented
+
+```text
+GET    /admin/realms              - List all realms
+POST   /admin/realms              - Create realm
+GET    /admin/realms/{realm}      - Get realm by name
+PUT    /admin/realms/{realm}      - Update realm
+DELETE /admin/realms/{realm}      - Delete realm
+
+GET    /admin/realms/{realm}/users      - List/search users
+POST   /admin/realms/{realm}/users      - Create user
+GET    /admin/realms/{realm}/users/{id} - Get user by ID
+PUT    /admin/realms/{realm}/users/{id} - Update user
+DELETE /admin/realms/{realm}/users/{id} - Delete user
+```
 
 ### Java Files to Reference
 
