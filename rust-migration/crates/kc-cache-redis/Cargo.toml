@@ -16,6 +16,7 @@ kc-spi = { workspace = true }
 # Async
 async-trait = { workspace = true }
 tokio = { workspace = true }
+futures = { workspace = true }
 
 # Redis
 fred = { workspace = true }
