@@ -196,7 +196,7 @@ impl FlowContext<states::InProgress> {
 
 ---
 
-## Phase 4: OIDC Protocol (8-10 weeks) 🚧 IN PROGRESS
+## Phase 4: OIDC Protocol (8-10 weeks) ✅ COMPLETE
 
 **Team allocation**: 3 developers
 
@@ -215,7 +215,7 @@ impl FlowContext<states::InProgress> {
 - ✅ JWKS module (JsonWebKey, JsonWebKeySet, JwksBuilder, KeyType, EcCurve)
 - ✅ Axum endpoints module with oidc_router() function
 - ✅ RealmProvider trait for pluggable realm data access
-- ⬜ Protocol mappers SPI
+- ✅ Protocol mappers SPI (built-in mappers, registry, userinfo/introspection mapper methods)
 
 ### Axum Router Structure
 
@@ -247,7 +247,7 @@ pub fn oidc_router() -> Router<AppState> {
 
 ---
 
-## Phase 5: Admin API (6-8 weeks) 🚧 IN PROGRESS
+## Phase 5: Admin API (6-8 weeks) ✅ COMPLETE
 
 **Team allocation**: 2 developers (parallel with Phase 4)
 
@@ -259,9 +259,9 @@ pub fn oidc_router() -> Router<AppState> {
 - ✅ Client CRUD endpoints (list/search, create, get, update, delete, client-secret)
 - ✅ Role CRUD endpoints (realm roles, client roles, composite roles)
 - ✅ Group CRUD endpoints (list/search, create, get, update, delete, children, members)
-- ⬜ Permission/authorization system
-- ⬜ Event logging
-- ⬜ Import/export (JSON format)
+- ✅ Permission/authorization system (middleware, RBAC, AdminAuth extractor)
+- ✅ Event logging (AdminEventLogger trait, TracingEventLogger, NIST AU-2/AU-3 compliance)
+- ✅ Import/export (JSON format for realms, users, clients, roles, groups)
 
 ### API Endpoints Implemented
 

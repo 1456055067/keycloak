@@ -35,6 +35,9 @@ chrono = { workspace = true }
 # Error handling
 thiserror = { workspace = true }
 
+# Logging
+tracing = { workspace = true }
+
 [dev-dependencies]
 tokio-test = { workspace = true }
 wiremock = { workspace = true }

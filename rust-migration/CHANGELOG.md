@@ -95,6 +95,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - kc-admin-api: Group count endpoint (GET /admin/realms/{realm}/groups/count)
 - kc-admin-api: Group search with query parameters (search, exact, topLevelOnly, pagination)
 - kc-admin-api: admin_group_router(), group_router() for modular group router composition
+- kc-admin-api: Authentication/authorization middleware (auth_middleware, AdminAuth extractor)
+- kc-admin-api: Permission-based access control (Permission enum, require_permission/require_any_permission)
+- kc-admin-api: TokenValidator trait for pluggable token validation
+- kc-admin-api: Event logging framework (AdminEventLogger trait, TracingEventLogger, InMemoryEventLogger)
+- kc-admin-api: AdminEventBuilder for constructing audit events with admin context
+- kc-admin-api: Convenience functions for logging admin operations (log_user_created, log_realm_deleted, etc.)
+- kc-admin-api: Import/export module for JSON-based realm configuration
+- kc-admin-api: RealmExport, UserExport, ClientExport, RoleExport types for full realm export
+- kc-admin-api: ImportOptions, ExportOptions, ImportResult for controlling import/export behavior
+- kc-protocol-oidc: apply_userinfo_mappers() and apply_introspection_mappers() registry methods
+- kc-core: Additional admin event types (RoleCreated/Updated/Deleted, GroupCreated/Updated/Deleted, etc.)
 - kc-crypto: generate_client_secret() for OAuth 2.0 confidential client secrets
 - GitHub Actions CI workflow (.github/workflows/ci.yml)
 - Pre-commit hooks script (scripts/pre-commit)

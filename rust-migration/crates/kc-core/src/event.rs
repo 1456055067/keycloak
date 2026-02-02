@@ -84,6 +84,36 @@ pub enum EventType {
     ClientUpdated,
     /// Client deleted.
     ClientDeleted,
+
+    // Role events
+    /// Role created.
+    RoleCreated,
+    /// Role updated.
+    RoleUpdated,
+    /// Role deleted.
+    RoleDeleted,
+
+    // Group events
+    /// Group created.
+    GroupCreated,
+    /// Group updated.
+    GroupUpdated,
+    /// Group deleted.
+    GroupDeleted,
+
+    // User-Role/Group membership events
+    /// User added to group.
+    UserJoinedGroup,
+    /// User removed from group.
+    UserLeftGroup,
+    /// Role assigned to user.
+    RoleAssignedToUser,
+    /// Role unassigned from user.
+    RoleUnassignedFromUser,
+
+    // Client secret events
+    /// Client secret regenerated.
+    ClientSecretRegenerated,
 }
 
 /// Outcome of an event.

@@ -763,6 +763,68 @@ impl ProtocolMapperRegistry {
 
         Ok(())
     }
+
+    /// Applies all configured mappers to userinfo response.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any mapper fails.
+    pub fn apply_userinfo_mappers(
+        &self,
+        claims: &mut AccessTokenClaims,
+        mapper_configs: &[MapperConfig],
+        context: &MapperContext<'_>,
+    ) -> OidcResult<()> {
+        // Sort by priority
+        let mut configs: Vec<_> = mapper_configs
+            .iter()
+            .filter(|c| c.include_in_userinfo())
+            .collect();
+
+        configs.sort_by_key(|c| {
+            self.get(&c.mapper_type)
+                .map_or(0, |m| m.priority())
+        });
+
+        for config in configs {
+            if let Some(mapper) = self.userinfo_mappers.get(&config.mapper_type) {
+                mapper.transform_userinfo(claims, config, context)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Applies all configured mappers to introspection response.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any mapper fails.
+    pub fn apply_introspection_mappers(
+        &self,
+        claims: &mut AccessTokenClaims,
+        mapper_configs: &[MapperConfig],
+        context: &MapperContext<'_>,
+    ) -> OidcResult<()> {
+        // Sort by priority
+        let mut configs: Vec<_> = mapper_configs
+            .iter()
+            .filter(|c| c.include_in_introspection())
+            .collect();
+
+        configs.sort_by_key(|c| {
+            self.get(&c.mapper_type)
+                .map_or(0, |m| m.priority())
+        });
+
+        for config in configs {
+            if let Some(mapper) = self.introspection_mappers.get(&config.mapper_type) {
+                mapper.transform_introspection(claims, config, context)?;
+            }
+        }
+
+        Ok(())
+    }
 }
 
 // ============================================================================

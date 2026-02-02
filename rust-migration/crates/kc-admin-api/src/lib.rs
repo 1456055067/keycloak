@@ -13,6 +13,7 @@
 //!
 //! ## Modules
 //!
+//! - [`auth`] - Authentication and authorization middleware
 //! - [`dto`] - Data Transfer Objects for API requests/responses
 //! - [`error`] - Error types and HTTP error responses
 //! - [`router`] - Axum router and HTTP handlers
@@ -110,12 +111,19 @@
 #![deny(warnings)]
 #![deny(missing_docs)]
 
+pub mod auth;
 pub mod dto;
 pub mod error;
+pub mod events;
+pub mod import_export;
 pub mod router;
 pub mod state;
 
 // Re-export commonly used types
+pub use auth::{
+    auth_middleware, require_any_permission, require_permission, AdminAuth, AuthState, Permission,
+    SimpleTokenValidator, TokenValidator,
+};
 pub use dto::{
     ClientRepresentation, ClientSearchParams, ClientSecretResponse, ClientSummary,
     CompositeRolesRequest, CreateClientRequest, CreateGroupRequest, CreateRealmRequest,
@@ -125,6 +133,13 @@ pub use dto::{
     UserRepresentation, UserSearchParams,
 };
 pub use error::{AdminError, AdminResult, ErrorResponse};
+pub use events::{
+    AdminEventBuilder, AdminEventLogger, EventLogError, InMemoryEventLogger, TracingEventLogger,
+};
+pub use import_export::{
+    ClientExport, CredentialExport, ExportOptions, ImportOptions, ImportResult,
+    ProtocolMapperExport, RealmExport, RoleExport, RolesExport, UserExport,
+};
 pub use router::{
     admin_client_router, admin_group_router, admin_role_router, admin_router, client_role_router,
     client_router, group_router, realm_role_router, realm_router, user_router,
