@@ -21,6 +21,7 @@
 //! - [`endpoints`] - Axum HTTP handlers for OIDC endpoints
 //! - [`error`] - OIDC error types following RFC 6749
 //! - [`jwks`] - JSON Web Key Set types for `/certs` endpoint
+//! - [`provider`] - Storage-backed OIDC provider implementation
 //! - [`request`] - Request types for OIDC endpoints
 //! - [`token`] - Token manager for creating and validating tokens
 //! - [`types`] - Common OIDC types (grant types, response modes, etc.)
@@ -34,6 +35,7 @@ pub mod discovery;
 pub mod endpoints;
 pub mod error;
 pub mod jwks;
+pub mod provider;
 pub mod request;
 pub mod token;
 pub mod types;
@@ -52,3 +54,4 @@ pub use types::{
     CodeChallengeMethod, Display, GrantType, Prompt, ResponseMode, ResponseType, ResponseTypes,
     SubjectType, TokenType,
 };
+pub use provider::{OidcStorageProvider, ProviderConfig};

@@ -62,6 +62,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - kc-protocol-oidc: AuthorizationCode and AuthorizationResponse types
 - kc-protocol-oidc: PKCE validation (S256 and plain methods)
 - kc-protocol-oidc: Response mode handling (query, fragment, form_post)
+- kc-protocol-oidc: OidcStorageProvider - storage-backed RealmProvider implementation
+- kc-protocol-oidc: ProviderConfig for configuring base URL and token lifespans
+- kc-protocol-oidc: Integration with kc-storage for realm and client data access
 - GitHub Actions CI workflow (.github/workflows/ci.yml)
 - Pre-commit hooks script (scripts/pre-commit)
 - Cargo audit configuration (.cargo/audit.toml)

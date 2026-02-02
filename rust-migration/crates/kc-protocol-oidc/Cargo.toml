@@ -15,6 +15,7 @@ kc-model = { workspace = true }
 kc-spi = { workspace = true }
 kc-auth = { workspace = true }
 kc-session = { workspace = true }
+kc-storage = { workspace = true }
 
 # Async
 async-trait = { workspace = true }
