@@ -204,6 +204,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - kc-server: Development RSA 3072-bit key and self-signed X.509 certificate for SAML signing
 - kc-server: SamlRealmProvider implementation with signing configuration
 - tests/integration: SAML endpoint integration tests (metadata, SSO, SLS, bindings, NameID formats)
+- kc-protocol-saml: SAML SSO integration with user authentication flow
+- kc-protocol-saml: SsoAction enum for login page or response actions
+- kc-protocol-saml: process_sso_redirect() and process_sso_post() functions for SSO processing
+- kc-protocol-saml: AuthnRequest signature validation for HTTP-Redirect binding (detached signatures)
+- kc-protocol-saml: AuthnRequest signature validation for HTTP-POST binding (embedded signatures)
+- kc-protocol-saml: SP configuration for signature requirements (require_authn_request_signed, signing_certificate, allow_sha1)
+- kc-protocol-saml: Session termination integration in SLS endpoint (terminate_session, find_sessions_by_name_id)
+- kc-protocol-saml: SessionInfo and ClientSessionInfo types for session tracking
+- kc-protocol-saml: Fixed XML element extraction for namespaced SAML tags (e.g., samlp:Response)
+- kc-server: SAML-specific login UI handlers (saml_ui.rs)
+- kc-server: Custom SAML SSO handlers with authentication flow integration (saml_handlers.rs)
+- kc-server: SAML login HTML template preserving SAML parameters (saml_login.html)
+- kc-server: Session termination implementation in StorageProviders
+- tests/integration: SAML SSO login page tests
+- tests/integration: SAML login submission tests (success and invalid credentials)
+- tests/integration: SAML response signing verification tests
 
 ### Security
 

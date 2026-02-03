@@ -247,20 +247,42 @@ fn canonicalize_element(xml: &str, start: usize) -> SamlResult<String> {
 fn extract_element(xml: &str, start: usize) -> SamlResult<String> {
     let xml_bytes = xml.as_bytes();
 
-    // Find the tag name
+    // Find the tag name (including any namespace prefix)
     let mut tag_end = start + 1;
     while tag_end < xml.len() && xml_bytes[tag_end] != b' ' && xml_bytes[tag_end] != b'>' {
         tag_end += 1;
     }
 
-    let tag_name = &xml[start + 1..tag_end];
-    let tag_name = tag_name.split(':').last().unwrap_or(tag_name);
+    let full_tag_name = &xml[start + 1..tag_end];
 
-    // Find the closing tag
+    // Try to find closing tag with full name first (e.g., </samlp:Response>)
+    let close_pattern_full = format!("</{}>", full_tag_name);
+    if let Some(close_pos) = xml[start..].find(&close_pattern_full) {
+        let end_pos = start + close_pos + close_pattern_full.len();
+        return Ok(xml[start..end_pos].to_string());
+    }
+
+    // Also try without the trailing >
+    let close_pattern_full2 = format!("</{}", full_tag_name);
+    if let Some(close_pos) = xml[start..].find(&close_pattern_full2) {
+        // Find the end of the closing tag
+        if let Some(end_offset) = xml[start + close_pos..].find('>') {
+            let end_pos = start + close_pos + end_offset + 1;
+            return Ok(xml[start..end_pos].to_string());
+        }
+    }
+
+    // If no namespace, try just the local name
+    let tag_name = full_tag_name.split(':').last().unwrap_or(full_tag_name);
     let close_pattern = format!("</{}", tag_name);
     let close_pos = xml[start..]
         .find(&close_pattern)
-        .ok_or_else(|| SamlError::SignatureCreation("Unclosed XML element".to_string()))?;
+        .ok_or_else(|| {
+            SamlError::SignatureCreation(format!(
+                "Unclosed XML element '{}' (searched for '{}')",
+                full_tag_name, close_pattern
+            ))
+        })?;
 
     // Find the end of the closing tag
     let end_pos = xml[start + close_pos..]

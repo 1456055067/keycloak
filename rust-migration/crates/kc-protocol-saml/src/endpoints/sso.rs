@@ -12,12 +12,41 @@ use serde::Deserialize;
 
 use crate::bindings::{HttpPostBinding, HttpRedirectBinding};
 use crate::error::SamlError;
+use crate::signature::XmlSignatureValidator;
 use crate::types::{
-    Assertion, AuthnContextClass, AuthnStatement, Conditions, NameId, Response,
+    Assertion, AuthnContextClass, AuthnStatement, Conditions, NameId,
     ResponseBuilder, Subject, SubjectConfirmation, SubjectConfirmationData,
 };
+use crate::types::Response as SamlResponse;
 
 use super::state::{SamlRealmProvider, SamlState};
+
+/// Action to take after processing an SSO request.
+///
+/// This enum allows the SSO endpoint to communicate to the caller
+/// what action should be taken - either show a login page or
+/// generate a SAML response.
+#[derive(Debug)]
+pub enum SsoAction {
+    /// Show a login page to the user.
+    ShowLoginPage {
+        /// The realm name.
+        realm: String,
+        /// The parsed authentication request.
+        request: ParsedAuthnRequest,
+        /// Optional relay state.
+        relay_state: Option<String>,
+    },
+    /// Return a SAML response (user already authenticated).
+    SendResponse {
+        /// The SAML response XML.
+        response_xml: String,
+        /// The ACS URL to post to.
+        acs_url: String,
+        /// Optional relay state.
+        relay_state: Option<String>,
+    },
+}
 
 /// Query parameters for SSO redirect binding.
 #[derive(Debug, Deserialize)]
@@ -73,6 +102,99 @@ pub async fn sso_post<R: SamlRealmProvider>(
         Ok(response) => response.into_response(),
         Err(e) => error_response(&e).into_response(),
     }
+}
+
+/// Processes an SSO redirect binding request and returns the action to take.
+///
+/// This function parses and validates the SAML AuthnRequest but does not
+/// authenticate the user. The caller is responsible for showing a login page
+/// or generating a SAML response.
+pub async fn process_sso_redirect<R: SamlRealmProvider>(
+    state: &SamlState<R>,
+    realm: &str,
+    params: &SsoRedirectParams,
+) -> Result<SsoAction, SamlError> {
+    // Check realm exists
+    if !state.realm_provider.realm_exists(realm).await.map_err(|e| {
+        SamlError::Internal(format!("Failed to check realm: {e}"))
+    })? {
+        return Err(SamlError::RealmNotFound(realm.to_string()));
+    }
+
+    let saml_request = params
+        .saml_request
+        .as_ref()
+        .ok_or_else(|| SamlError::InvalidRequest("SAMLRequest parameter required".to_string()))?;
+
+    // Decode the request
+    let decoded = HttpRedirectBinding::decode(
+        Some(saml_request),
+        None,
+        params.relay_state.as_deref(),
+        params.signature.as_deref(),
+        params.sig_alg.as_deref(),
+    )?;
+
+    // Parse and validate the AuthnRequest
+    let authn_request = parse_authn_request(&decoded.xml)?;
+
+    // Validate signature if present or required
+    validate_authn_request_signature(
+        state,
+        realm,
+        &authn_request,
+        params.signature.as_deref(),
+        params.sig_alg.as_deref(),
+        saml_request,
+        params.relay_state.as_deref(),
+    )
+    .await?;
+
+    // Return action to show login page
+    Ok(SsoAction::ShowLoginPage {
+        realm: realm.to_string(),
+        request: authn_request,
+        relay_state: decoded.relay_state,
+    })
+}
+
+/// Processes an SSO POST binding request and returns the action to take.
+///
+/// This function parses and validates the SAML AuthnRequest but does not
+/// authenticate the user. The caller is responsible for showing a login page
+/// or generating a SAML response.
+pub async fn process_sso_post<R: SamlRealmProvider>(
+    state: &SamlState<R>,
+    realm: &str,
+    form: &SsoPostForm,
+) -> Result<SsoAction, SamlError> {
+    // Check realm exists
+    if !state.realm_provider.realm_exists(realm).await.map_err(|e| {
+        SamlError::Internal(format!("Failed to check realm: {e}"))
+    })? {
+        return Err(SamlError::RealmNotFound(realm.to_string()));
+    }
+
+    let saml_request = form
+        .saml_request
+        .as_ref()
+        .ok_or_else(|| SamlError::InvalidRequest("SAMLRequest parameter required".to_string()))?;
+
+    // Decode the request
+    let decoded = HttpPostBinding::decode(Some(saml_request), None, form.relay_state.as_deref())?;
+
+    // Parse and validate the AuthnRequest
+    let authn_request = parse_authn_request(&decoded.xml)?;
+
+    // Validate embedded signature for POST binding if present or required
+    validate_authn_request_signature_post(state, realm, &authn_request, &decoded.xml).await?;
+
+    // Return action to show login page
+    Ok(SsoAction::ShowLoginPage {
+        realm: realm.to_string(),
+        request: authn_request,
+        relay_state: decoded.relay_state,
+    })
 }
 
 /// Handles SSO via HTTP-Redirect binding.
@@ -176,16 +298,175 @@ async fn handle_sso_post<R: SamlRealmProvider>(
     Ok(Html(html))
 }
 
-/// Parsed authentication request (simplified).
-#[derive(Debug)]
-#[allow(dead_code)]
-struct ParsedAuthnRequest {
-    id: String,
-    issuer: String,
-    assertion_consumer_service_url: Option<String>,
-    name_id_policy_format: Option<String>,
-    force_authn: bool,
-    is_passive: bool,
+/// Parsed authentication request.
+///
+/// This struct contains the parsed information from a SAML AuthnRequest
+/// and can be used to determine how to authenticate the user.
+#[derive(Debug, Clone)]
+pub struct ParsedAuthnRequest {
+    /// The unique identifier of the request.
+    pub id: String,
+    /// The issuer (SP entity ID).
+    pub issuer: String,
+    /// The Assertion Consumer Service URL where the response should be sent.
+    pub assertion_consumer_service_url: Option<String>,
+    /// The requested NameID format.
+    pub name_id_policy_format: Option<String>,
+    /// Whether to force re-authentication.
+    pub force_authn: bool,
+    /// Whether the IdP should not interact with the user.
+    pub is_passive: bool,
+}
+
+/// Validates the AuthnRequest signature for HTTP-Redirect binding.
+///
+/// For redirect binding, the signature is detached and computed over the
+/// query string parameters.
+async fn validate_authn_request_signature<R: SamlRealmProvider>(
+    state: &SamlState<R>,
+    realm: &str,
+    authn_request: &ParsedAuthnRequest,
+    signature: Option<&str>,
+    sig_alg: Option<&str>,
+    saml_request: &str,
+    relay_state: Option<&str>,
+) -> Result<(), SamlError> {
+    // Look up the SP configuration
+    let sp_config = state
+        .realm_provider
+        .get_service_provider(realm, &authn_request.issuer)
+        .await
+        .map_err(|e| SamlError::Internal(format!("Failed to get SP config: {e}")))?;
+
+    // If SP is not registered, we might allow the request for testing
+    // In production, you may want to reject unregistered SPs
+    let Some(sp) = sp_config else {
+        tracing::debug!("SP '{}' not registered, skipping signature validation", authn_request.issuer);
+        return Ok(());
+    };
+
+    // Check if SP requires signed requests
+    if sp.require_authn_request_signed {
+        // Signature is required
+        let signature = signature.ok_or_else(|| {
+            SamlError::SignatureInvalid("SP requires signed AuthnRequest but no signature provided".to_string())
+        })?;
+        let sig_alg = sig_alg.ok_or_else(|| {
+            SamlError::SignatureInvalid("Signature algorithm not specified".to_string())
+        })?;
+
+        // Get the SP's signing certificate
+        let cert_der = sp.signing_certificate.as_ref().ok_or_else(|| {
+            SamlError::SignatureInvalid("SP requires signed requests but no certificate configured".to_string())
+        })?;
+
+        // Build the signed query string for validation
+        // For redirect binding, the signature is computed over: SAMLRequest=value&RelayState=value&SigAlg=value
+        let mut signed_query = format!("SAMLRequest={}", urlencoding::encode(saml_request));
+        if let Some(rs) = relay_state {
+            signed_query.push_str(&format!("&RelayState={}", urlencoding::encode(rs)));
+        }
+        signed_query.push_str(&format!("&SigAlg={}", urlencoding::encode(sig_alg)));
+
+        // Create validator and validate
+        let validator = XmlSignatureValidator::new(vec![cert_der.clone()])
+            .allow_sha1(sp.allow_sha1);
+
+        validator
+            .validate_redirect_binding(&signed_query, signature, sig_alg)
+            .map_err(|e| {
+                tracing::warn!("AuthnRequest signature validation failed: {}", e);
+                SamlError::SignatureInvalid(format!("AuthnRequest signature invalid: {e}"))
+            })?;
+
+        tracing::debug!("AuthnRequest signature validated successfully");
+    } else if signature.is_some() {
+        // Signature provided but not required - validate it anyway for security
+        if let (Some(sig), Some(alg), Some(cert_der)) = (signature, sig_alg, sp.signing_certificate.as_ref()) {
+            let mut signed_query = format!("SAMLRequest={}", urlencoding::encode(saml_request));
+            if let Some(rs) = relay_state {
+                signed_query.push_str(&format!("&RelayState={}", urlencoding::encode(rs)));
+            }
+            signed_query.push_str(&format!("&SigAlg={}", urlencoding::encode(alg)));
+
+            let validator = XmlSignatureValidator::new(vec![cert_der.clone()])
+                .allow_sha1(sp.allow_sha1);
+
+            if let Err(e) = validator.validate_redirect_binding(&signed_query, sig, alg) {
+                tracing::warn!("Optional AuthnRequest signature validation failed: {}", e);
+                // Don't fail - signature was optional
+            } else {
+                tracing::debug!("Optional AuthnRequest signature validated successfully");
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Validates the AuthnRequest signature for HTTP-POST binding.
+///
+/// For POST binding, the signature is embedded in the XML document.
+async fn validate_authn_request_signature_post<R: SamlRealmProvider>(
+    state: &SamlState<R>,
+    realm: &str,
+    authn_request: &ParsedAuthnRequest,
+    xml: &str,
+) -> Result<(), SamlError> {
+    // Look up the SP configuration
+    let sp_config = state
+        .realm_provider
+        .get_service_provider(realm, &authn_request.issuer)
+        .await
+        .map_err(|e| SamlError::Internal(format!("Failed to get SP config: {e}")))?;
+
+    // If SP is not registered, we might allow the request for testing
+    let Some(sp) = sp_config else {
+        tracing::debug!("SP '{}' not registered, skipping signature validation", authn_request.issuer);
+        return Ok(());
+    };
+
+    // Check if XML contains a signature
+    let has_signature = xml.contains("<ds:Signature") || xml.contains("<Signature");
+
+    if sp.require_authn_request_signed {
+        if !has_signature {
+            return Err(SamlError::SignatureInvalid(
+                "SP requires signed AuthnRequest but no signature found in request".to_string(),
+            ));
+        }
+
+        // Get the SP's signing certificate
+        let cert_der = sp.signing_certificate.as_ref().ok_or_else(|| {
+            SamlError::SignatureInvalid("SP requires signed requests but no certificate configured".to_string())
+        })?;
+
+        // Create validator and validate the embedded signature
+        let validator = XmlSignatureValidator::new(vec![cert_der.clone()])
+            .allow_sha1(sp.allow_sha1);
+
+        validator.validate(xml).map_err(|e| {
+            tracing::warn!("AuthnRequest embedded signature validation failed: {}", e);
+            SamlError::SignatureInvalid(format!("AuthnRequest signature invalid: {e}"))
+        })?;
+
+        tracing::debug!("AuthnRequest embedded signature validated successfully");
+    } else if has_signature {
+        // Signature present but not required - validate it anyway if we have a certificate
+        if let Some(cert_der) = sp.signing_certificate.as_ref() {
+            let validator = XmlSignatureValidator::new(vec![cert_der.clone()])
+                .allow_sha1(sp.allow_sha1);
+
+            if let Err(e) = validator.validate(xml) {
+                tracing::warn!("Optional AuthnRequest embedded signature validation failed: {}", e);
+                // Don't fail - signature was optional
+            } else {
+                tracing::debug!("Optional AuthnRequest embedded signature validated successfully");
+            }
+        }
+    }
+
+    Ok(())
 }
 
 /// Parses an AuthnRequest from XML.
@@ -330,7 +611,7 @@ async fn generate_success_response<R: SamlRealmProvider>(
 }
 
 /// Serializes a SAML response to XML.
-fn serialize_response(response: &Response) -> Result<String, SamlError> {
+fn serialize_response(response: &SamlResponse) -> Result<String, SamlError> {
     // Simplified XML generation - a full implementation would use quick-xml
     let assertion_xml = if let Some(ref assertion) = response.assertions.first() {
         format!(

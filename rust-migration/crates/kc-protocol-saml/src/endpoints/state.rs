@@ -58,6 +58,59 @@ pub trait SamlRealmProvider: Send + Sync + 'static {
         user_id: &str,
         sp_entity_id: &str,
     ) -> Result<Vec<(String, Vec<String>)>, SamlRealmError>;
+
+    /// Terminates a user session by NameID.
+    ///
+    /// This is called when processing a SAML LogoutRequest to terminate
+    /// the user's session at the IdP.
+    ///
+    /// # Arguments
+    ///
+    /// * `realm` - The realm name
+    /// * `name_id` - The SAML NameID value identifying the user
+    /// * `session_index` - Optional session index from the LogoutRequest
+    ///
+    /// # Returns
+    ///
+    /// Returns the number of sessions terminated, or an error.
+    async fn terminate_session(
+        &self,
+        realm: &str,
+        name_id: &str,
+        session_index: Option<&str>,
+    ) -> Result<u64, SamlRealmError>;
+
+    /// Finds sessions for a user by NameID.
+    ///
+    /// This is used to identify sessions that may need to be terminated
+    /// during SAML logout.
+    async fn find_sessions_by_name_id(
+        &self,
+        realm: &str,
+        name_id: &str,
+    ) -> Result<Vec<SessionInfo>, SamlRealmError>;
+}
+
+/// Information about a user session.
+#[derive(Debug, Clone)]
+pub struct SessionInfo {
+    /// Session ID.
+    pub session_id: String,
+    /// User ID.
+    pub user_id: String,
+    /// Session index (for SAML).
+    pub session_index: Option<String>,
+    /// Client sessions associated with this session.
+    pub client_sessions: Vec<ClientSessionInfo>,
+}
+
+/// Information about a client session within a user session.
+#[derive(Debug, Clone)]
+pub struct ClientSessionInfo {
+    /// Client/SP entity ID.
+    pub client_id: String,
+    /// Session index for this client session.
+    pub session_index: Option<String>,
 }
 
 /// Error type for realm provider operations.
@@ -139,6 +192,15 @@ pub struct ServiceProviderConfig {
 
     /// Whether this SP is enabled.
     pub enabled: bool,
+
+    /// Whether to require signed AuthnRequests from this SP.
+    pub require_authn_request_signed: bool,
+
+    /// SP's signing certificate (DER format) for validating signed requests.
+    pub signing_certificate: Option<Vec<u8>>,
+
+    /// Whether to allow SHA-1 signatures (deprecated but needed for compatibility).
+    pub allow_sha1: bool,
 }
 
 /// Assertion Consumer Service endpoint.

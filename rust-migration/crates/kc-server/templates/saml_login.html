@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In - {{ realm_name }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="logo">
+        <h1>Keycloak</h1>
+        <div class="subtitle">Identity and Access Management</div>
+    </div>
+
+    <div class="realm-name">
+        Signing in to <strong>{{ realm_name }}</strong>
+        {% if let Some(sp_name) = sp_name %}
+        <br>for <strong>{{ sp_name }}</strong>
+        {% endif %}
+    </div>
+
+    {% if let Some(error) = error %}
+    <div class="error-message">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="POST" action="{{ action_url }}">
+        <!-- Preserve SAML parameters -->
+        <input type="hidden" name="saml_request_id" value="{{ saml_request_id }}">
+        <input type="hidden" name="sp_entity_id" value="{{ sp_entity_id }}">
+        <input type="hidden" name="acs_url" value="{{ acs_url }}">
+        {% if let Some(relay_state) = relay_state %}
+        <input type="hidden" name="relay_state" value="{{ relay_state }}">
+        {% endif %}
+        {% if let Some(name_id_format) = name_id_format %}
+        <input type="hidden" name="name_id_format" value="{{ name_id_format }}">
+        {% endif %}
+        <input type="hidden" name="force_authn" value="{{ force_authn }}">
+
+        <div class="form-group">
+            <label for="username">Username or Email</label>
+            <input
+                type="text"
+                id="username"
+                name="username"
+                placeholder="Enter your username"
+                autocomplete="username"
+                autocapitalize="none"
+                required
+                autofocus
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input
+                type="password"
+                id="password"
+                name="password"
+                placeholder="Enter your password"
+                autocomplete="current-password"
+                required
+            >
+        </div>
+
+        <button type="submit" class="btn btn-primary">Sign In</button>
+    </form>
+
+    <div class="links">
+        <a href="#">Forgot password?</a>
+    </div>
+</div>
+{% endblock %}

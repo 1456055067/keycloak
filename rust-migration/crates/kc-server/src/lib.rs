@@ -29,6 +29,8 @@
 pub mod config;
 pub mod providers;
 pub mod router;
+pub mod saml_handlers;
+pub mod saml_ui;
 pub mod state;
 pub mod ui;
 

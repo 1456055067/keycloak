@@ -24,8 +24,8 @@ use kc_session::error::SessionResult;
 use kc_session::user_session::UserSession;
 use kc_session::SessionProvider;
 use kc_protocol_saml::endpoints::{
-    AcsEndpoint, SamlRealmError, SamlRealmProvider, SamlUser, ServiceProviderConfig, SigningConfig,
-    SlsEndpoint,
+    AcsEndpoint, SamlRealmError, SamlRealmProvider, SamlUser, ServiceProviderConfig, SessionInfo,
+    SigningConfig, SlsEndpoint,
 };
 use kc_protocol_saml::signature::SignatureConfig as SamlSignatureConfig;
 use kc_storage::{ClientProvider, CredentialProvider, RealmProvider as StorageRealmProvider, UserProvider};
@@ -770,6 +770,11 @@ impl SamlRealmProvider for StorageProviders {
                         "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified".to_string(),
                     ),
                     enabled: c.enabled,
+                    // Signature validation settings
+                    // By default, don't require signed AuthnRequests for flexibility
+                    require_authn_request_signed: false,
+                    signing_certificate: None, // Would be populated from client settings
+                    allow_sha1: false, // Don't allow deprecated SHA-1 by default
                 }))
             }
             None => Ok(None),
@@ -838,5 +843,143 @@ impl SamlRealmProvider for StorageProviders {
         // - Protocol mapper results
 
         Ok(attributes)
+    }
+
+    async fn terminate_session(
+        &self,
+        realm: &str,
+        name_id: &str,
+        session_index: Option<&str>,
+    ) -> Result<u64, SamlRealmError> {
+        // Get the realm to find its ID
+        let realm_model = self
+            .realm
+            .get_by_name(realm)
+            .await
+            .map_err(|e| SamlRealmError::Storage(e.to_string()))?
+            .ok_or_else(|| SamlRealmError::RealmNotFound(realm.to_string()))?;
+
+        // Try to find user by username first (common NameID format)
+        let user = self
+            .user
+            .get_by_username(realm_model.id, name_id)
+            .await
+            .map_err(|e| SamlRealmError::Storage(e.to_string()))?;
+
+        let user_id = match user {
+            Some(u) => u.id,
+            None => {
+                // NameID might be a persistent ID (UUID) or other format
+                // Try parsing as UUID
+                match Uuid::parse_str(name_id) {
+                    Ok(id) => id,
+                    Err(_) => {
+                        tracing::debug!(
+                            "Could not find user for NameID '{}' in realm '{}'",
+                            name_id,
+                            realm
+                        );
+                        return Ok(0);
+                    }
+                }
+            }
+        };
+
+        // Get sessions for this user
+        let sessions = self
+            .session
+            .get_user_sessions_by_user(realm_model.id, user_id)
+            .await
+            .map_err(|e| SamlRealmError::Storage(e.to_string()))?;
+
+        if sessions.is_empty() {
+            tracing::debug!(
+                "No sessions found for user '{}' in realm '{}'",
+                user_id,
+                realm
+            );
+            return Ok(0);
+        }
+
+        let mut terminated = 0u64;
+
+        for session in &sessions {
+            // If session_index is specified, only terminate matching sessions
+            if let Some(idx) = session_index {
+                // The session ID is used as the session index
+                if session.id.to_string() != idx {
+                    continue;
+                }
+            }
+
+            // Terminate the session
+            if self
+                .session
+                .remove_user_session(realm_model.id, session.id)
+                .await
+                .is_ok()
+            {
+                terminated += 1;
+                tracing::info!(
+                    "Terminated session '{}' for NameID '{}' in realm '{}'",
+                    session.id,
+                    name_id,
+                    realm
+                );
+            }
+        }
+
+        Ok(terminated)
+    }
+
+    async fn find_sessions_by_name_id(
+        &self,
+        realm: &str,
+        name_id: &str,
+    ) -> Result<Vec<SessionInfo>, SamlRealmError> {
+        // Get the realm to find its ID
+        let realm_model = self
+            .realm
+            .get_by_name(realm)
+            .await
+            .map_err(|e| SamlRealmError::Storage(e.to_string()))?
+            .ok_or_else(|| SamlRealmError::RealmNotFound(realm.to_string()))?;
+
+        // Try to find user by username first
+        let user = self
+            .user
+            .get_by_username(realm_model.id, name_id)
+            .await
+            .map_err(|e| SamlRealmError::Storage(e.to_string()))?;
+
+        let user_id = match user {
+            Some(u) => u.id,
+            None => {
+                // Try parsing NameID as UUID
+                match Uuid::parse_str(name_id) {
+                    Ok(id) => id,
+                    Err(_) => return Ok(Vec::new()),
+                }
+            }
+        };
+
+        // Get sessions for this user
+        let sessions = self
+            .session
+            .get_user_sessions_by_user(realm_model.id, user_id)
+            .await
+            .map_err(|e| SamlRealmError::Storage(e.to_string()))?;
+
+        let result: Vec<SessionInfo> = sessions
+            .into_iter()
+            .map(|s| SessionInfo {
+                session_id: s.id.to_string(),
+                user_id: s.user_id.to_string(),
+                session_index: Some(s.id.to_string()),
+                client_sessions: Vec::new(), // Would need to query client sessions separately
+            })
+            .collect();
+
+        Ok(result)
     }
 }

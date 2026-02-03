@@ -107,7 +107,24 @@ async fn handle_sls_redirect<R: SamlRealmProvider>(
         let logout_request = parse_logout_request(&decoded.xml)?;
 
         // TODO: Validate signature
-        // TODO: Actually terminate the session
+
+        // Terminate the user's session
+        let terminated = state
+            .realm_provider
+            .terminate_session(
+                realm,
+                &logout_request.name_id,
+                logout_request.session_index.as_deref(),
+            )
+            .await
+            .map_err(|e| SamlError::Internal(format!("Failed to terminate session: {e}")))?;
+
+        tracing::info!(
+            "SAML logout for '{}' in realm '{}': terminated {} sessions",
+            logout_request.name_id,
+            realm,
+            terminated
+        );
 
         // Generate logout response
         let response = generate_logout_response(state, realm, &logout_request).await?;
@@ -164,7 +181,23 @@ async fn handle_sls_post<R: SamlRealmProvider>(
 
         let logout_request = parse_logout_request(&decoded.xml)?;
 
-        // TODO: Actually terminate the session
+        // Terminate the user's session
+        let terminated = state
+            .realm_provider
+            .terminate_session(
+                realm,
+                &logout_request.name_id,
+                logout_request.session_index.as_deref(),
+            )
+            .await
+            .map_err(|e| SamlError::Internal(format!("Failed to terminate session: {e}")))?;
+
+        tracing::info!(
+            "SAML logout (POST) for '{}' in realm '{}': terminated {} sessions",
+            logout_request.name_id,
+            realm,
+            terminated
+        );
 
         // Generate logout response
         let response = generate_logout_response(state, realm, &logout_request).await?;

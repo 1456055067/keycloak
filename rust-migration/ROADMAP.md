@@ -464,6 +464,25 @@ let config = LdapConfig::builder()
   - IdP metadata endpoint (idp_metadata)
   - saml_router() function for complete SAML router configuration
 
+- ✅ **SSO Integration with User Authentication**
+  - SsoAction enum for login page or response actions
+  - process_sso_redirect() and process_sso_post() processing functions
+  - Custom SSO handlers with login form integration
+  - SAML-specific login UI (saml_ui.rs, saml_login.html)
+  - Authorization code generation on successful authentication
+
+- ✅ **AuthnRequest Signature Validation**
+  - HTTP-Redirect binding (detached signatures over query string)
+  - HTTP-POST binding (embedded XML signatures)
+  - SP configuration: require_authn_request_signed, signing_certificate, allow_sha1
+  - Certificate-based signature verification with x509-parser
+
+- ✅ **SLS Session Termination Integration**
+  - terminate_session() method in SamlRealmProvider
+  - find_sessions_by_name_id() for session lookup
+  - SessionInfo and ClientSessionInfo types
+  - Session termination called during logout processing
+
 ### Router Structure
 
 ```rust
