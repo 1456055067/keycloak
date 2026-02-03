@@ -12,6 +12,7 @@ use serde::Serialize;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 
+use kc_admin_api::{admin_client_router, admin_group_router, admin_role_router, admin_router};
 use kc_protocol_oidc::endpoints::oidc_router;
 use kc_protocol_saml::endpoints::{idp_metadata, sls_post, sls_redirect, SamlState};
 
@@ -50,6 +51,13 @@ pub fn create_router(state: AppState) -> Router {
         )
         .with_state(state.clone());
 
+    // Create Admin API routes (if enabled)
+    let admin = if state.config.admin_api_enabled {
+        Some(create_admin_router(&state))
+    } else {
+        None
+    };
+
     // CORS configuration
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -57,14 +65,42 @@ pub fn create_router(state: AppState) -> Router {
         .allow_headers(Any);
 
     // Combine all routes - each router already has state, so they're converted to Router<()>
-    Router::new()
+    let mut app = Router::new()
         .merge(oidc)
         .merge(saml)
         .merge(health)
         .merge(ui_routes)
-        .route("/", get(root))
-        .layer(TraceLayer::new_for_http())
-        .layer(cors)
+        .route("/", get(root));
+
+    // Add Admin API routes if enabled
+    if let Some(admin_routes) = admin {
+        app = app.merge(admin_routes);
+    }
+
+    app.layer(TraceLayer::new_for_http()).layer(cors)
+}
+
+/// Creates the Admin API router combining all admin endpoints.
+fn create_admin_router(state: &AppState) -> Router {
+    // Create individual admin routers with their respective states
+    let user_admin = admin_router()
+        .with_state(state.admin_user_state());
+
+    let client_admin = admin_client_router()
+        .with_state(state.admin_client_state());
+
+    let role_admin = admin_role_router()
+        .with_state(state.admin_role_state());
+
+    let group_admin = admin_group_router()
+        .with_state(state.admin_group_state());
+
+    // Combine all admin routes
+    Router::new()
+        .merge(user_admin)
+        .merge(client_admin)
+        .merge(role_admin)
+        .merge(group_admin)
 }
 
 /// Creates the SAML router with custom SSO handlers.

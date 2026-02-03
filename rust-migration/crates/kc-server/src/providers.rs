@@ -30,7 +30,7 @@ use kc_protocol_saml::endpoints::{
 use kc_protocol_saml::signature::SignatureConfig as SamlSignatureConfig;
 use kc_storage::{ClientProvider, CredentialProvider, RealmProvider as StorageRealmProvider, UserProvider};
 use kc_storage_sql::providers::{
-    PgClientProvider, PgCredentialProvider, PgRealmProvider, PgUserProvider,
+    PgClientProvider, PgCredentialProvider, PgGroupProvider, PgRealmProvider, PgRoleProvider, PgUserProvider,
 };
 use sqlx::PgPool;
 use tokio::sync::RwLock;
@@ -74,6 +74,12 @@ pub struct StorageProviders {
     /// Credential provider.
     pub credential: Arc<PgCredentialProvider>,
 
+    /// Role provider.
+    pub role: Arc<PgRoleProvider>,
+
+    /// Group provider.
+    pub group: Arc<PgGroupProvider>,
+
     /// In-memory session provider.
     pub session: Arc<InMemorySessionProvider>,
 
@@ -98,7 +104,9 @@ impl StorageProviders {
             realm: Arc::new(PgRealmProvider::new(pool.clone())),
             user: Arc::new(PgUserProvider::new(pool.clone())),
             client: Arc::new(PgClientProvider::new(pool.clone())),
-            credential: Arc::new(PgCredentialProvider::new(pool)),
+            credential: Arc::new(PgCredentialProvider::new(pool.clone())),
+            role: Arc::new(PgRoleProvider::new(pool.clone())),
+            group: Arc::new(PgGroupProvider::new(pool)),
             session: Arc::new(InMemorySessionProvider::new()),
             auth_codes: Arc::new(InMemoryAuthCodeStore::new()),
             password_hasher: Arc::new(PasswordHasherService::with_defaults()),

@@ -4,8 +4,13 @@
 
 use std::sync::Arc;
 
+use kc_admin_api::{ClientState, GroupState, RoleState, UserState};
 use kc_protocol_oidc::endpoints::OidcState;
 use kc_protocol_saml::endpoints::SamlState;
+use kc_storage_sql::providers::{
+    PgClientProvider, PgCredentialProvider, PgGroupProvider, PgRealmProvider, PgRoleProvider,
+    PgUserProvider,
+};
 
 use crate::config::ServerConfig;
 use crate::providers::StorageProviders;
@@ -44,5 +49,43 @@ impl AppState {
     /// Returns the server configuration.
     pub const fn config(&self) -> &ServerConfig {
         &self.config
+    }
+
+    /// Gets the Admin API user state (for realm and user management).
+    pub fn admin_user_state(
+        &self,
+    ) -> UserState<PgRealmProvider, PgUserProvider, PgCredentialProvider> {
+        UserState::new(
+            self.providers.realm.clone(),
+            self.providers.user.clone(),
+            self.providers.credential.clone(),
+        )
+    }
+
+    /// Gets the Admin API client state (for client management).
+    pub fn admin_client_state(&self) -> ClientState<PgRealmProvider, PgClientProvider> {
+        ClientState::new(
+            self.providers.realm.clone(),
+            self.providers.client.clone(),
+        )
+    }
+
+    /// Gets the Admin API role state (for role management).
+    pub fn admin_role_state(
+        &self,
+    ) -> RoleState<PgRealmProvider, PgClientProvider, PgRoleProvider> {
+        RoleState::new(
+            self.providers.realm.clone(),
+            self.providers.client.clone(),
+            self.providers.role.clone(),
+        )
+    }
+
+    /// Gets the Admin API group state (for group management).
+    pub fn admin_group_state(&self) -> GroupState<PgRealmProvider, PgGroupProvider> {
+        GroupState::new(
+            self.providers.realm.clone(),
+            self.providers.group.clone(),
+        )
     }
 }
