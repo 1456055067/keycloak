@@ -13,6 +13,7 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 
 use kc_protocol_oidc::endpoints::oidc_router;
+use kc_protocol_saml::endpoints::saml_router;
 
 use crate::providers::StorageProviders;
 use crate::state::AppState;
@@ -23,6 +24,10 @@ pub fn create_router(state: AppState) -> Router {
     // Create OIDC router with our providers
     let oidc = oidc_router::<StorageProviders>()
         .with_state(state.oidc_state());
+
+    // Create SAML router with our providers
+    let saml = saml_router::<StorageProviders>()
+        .with_state(state.saml_state());
 
     // Create health check routes
     let health = Router::new()
@@ -48,6 +53,7 @@ pub fn create_router(state: AppState) -> Router {
     // Combine all routes
     Router::new()
         .merge(oidc)
+        .merge(saml)
         .merge(health)
         .merge(ui_routes)
         .route("/", get(root))

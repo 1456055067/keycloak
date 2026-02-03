@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use kc_protocol_oidc::endpoints::OidcState;
+use kc_protocol_saml::endpoints::SamlState;
 
 use crate::config::ServerConfig;
 use crate::providers::StorageProviders;
@@ -28,6 +29,11 @@ impl AppState {
     /// Gets the OIDC state for the protocol endpoints.
     pub fn oidc_state(&self) -> OidcState<StorageProviders> {
         OidcState::from_arc(self.providers.clone())
+    }
+
+    /// Gets the SAML state for the protocol endpoints.
+    pub fn saml_state(&self) -> SamlState<StorageProviders> {
+        SamlState::new(self.providers.clone())
     }
 
     /// Returns a reference to the storage providers.

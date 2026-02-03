@@ -23,6 +23,10 @@ use kc_session::client_session::ClientSession;
 use kc_session::error::SessionResult;
 use kc_session::user_session::UserSession;
 use kc_session::SessionProvider;
+use kc_protocol_saml::endpoints::{
+    AcsEndpoint, SamlRealmError, SamlRealmProvider, SamlUser, ServiceProviderConfig, SigningConfig,
+    SlsEndpoint,
+};
 use kc_storage::{ClientProvider, CredentialProvider, RealmProvider as StorageRealmProvider, UserProvider};
 use kc_storage_sql::providers::{
     PgClientProvider, PgCredentialProvider, PgRealmProvider, PgUserProvider,
@@ -660,5 +664,173 @@ impl AuthCodeStore for InMemoryAuthCodeStore {
         let initial_len = codes.len();
         codes.retain(|_, code| code.expires_at > now);
         Ok((initial_len - codes.len()) as u64)
+    }
+}
+
+// ============================================================================
+// SAML Realm Provider Implementation
+// ============================================================================
+
+#[async_trait]
+impl SamlRealmProvider for StorageProviders {
+    async fn realm_exists(&self, realm: &str) -> Result<bool, SamlRealmError> {
+        self.realm
+            .get_by_name(realm)
+            .await
+            .map(|r| r.is_some())
+            .map_err(|e| SamlRealmError::Storage(e.to_string()))
+    }
+
+    async fn get_idp_entity_id(&self, realm: &str) -> Result<String, SamlRealmError> {
+        let base_url = self.base_url.read().await.clone();
+        Ok(format!("{}/realms/{}", base_url, realm))
+    }
+
+    async fn get_sso_url(&self, realm: &str) -> Result<String, SamlRealmError> {
+        let base_url = self.base_url.read().await.clone();
+        Ok(format!("{}/realms/{}/protocol/saml", base_url, realm))
+    }
+
+    async fn get_sls_url(&self, realm: &str) -> Result<String, SamlRealmError> {
+        let base_url = self.base_url.read().await.clone();
+        Ok(format!("{}/realms/{}/protocol/saml/logout", base_url, realm))
+    }
+
+    async fn get_signing_config(&self, _realm: &str) -> Result<SigningConfig, SamlRealmError> {
+        // For development, use the same EC key as OIDC
+        // In production, SAML typically uses RSA keys for XML signatures
+        // This is a placeholder - real implementation would load realm-specific keys
+
+        // Convert the PEM to DER format (placeholder - needs proper implementation)
+        // For now, return an error since SAML signing requires RSA keys
+        Err(SamlRealmError::Internal(
+            "SAML signing keys not yet configured - RSA keys required".to_string(),
+        ))
+    }
+
+    async fn get_service_provider(
+        &self,
+        realm: &str,
+        entity_id: &str,
+    ) -> Result<Option<ServiceProviderConfig>, SamlRealmError> {
+        // Look up the realm first
+        let realm_model = self
+            .realm
+            .get_by_name(realm)
+            .await
+            .map_err(|e| SamlRealmError::Storage(e.to_string()))?
+            .ok_or_else(|| SamlRealmError::RealmNotFound(realm.to_string()))?;
+
+        // In a real implementation, we would look up SAML clients by entity_id
+        // For now, try to find a client with matching client_id
+        let client = self
+            .client
+            .get_by_client_id(realm_model.id, entity_id)
+            .await
+            .map_err(|e| SamlRealmError::Storage(e.to_string()))?;
+
+        match client {
+            Some(c) => {
+                // Build service provider config from client
+                // Note: Real implementation would have SAML-specific fields
+                let base_redirect = c.base_url.as_deref().unwrap_or("");
+
+                Ok(Some(ServiceProviderConfig {
+                    entity_id: c.client_id.clone(),
+                    name: c.name.clone(),
+                    acs_urls: vec![AcsEndpoint {
+                        url: if base_redirect.is_empty() {
+                            format!("{}/saml/acs", entity_id)
+                        } else {
+                            format!("{}/saml/acs", base_redirect)
+                        },
+                        binding: "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST".to_string(),
+                        index: 0,
+                        is_default: true,
+                    }],
+                    sls_urls: vec![SlsEndpoint {
+                        url: if base_redirect.is_empty() {
+                            format!("{}/saml/sls", entity_id)
+                        } else {
+                            format!("{}/saml/sls", base_redirect)
+                        },
+                        binding: "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST".to_string(),
+                    }],
+                    sign_assertions: true,
+                    sign_responses: true,
+                    encrypt_assertions: false,
+                    encryption_certificate: None,
+                    name_id_format: Some(
+                        "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified".to_string(),
+                    ),
+                    enabled: c.enabled,
+                }))
+            }
+            None => Ok(None),
+        }
+    }
+
+    async fn get_user(&self, realm: &str, user_id: &str) -> Result<Option<SamlUser>, SamlRealmError> {
+        // Parse user_id as UUID
+        let user_uuid = Uuid::parse_str(user_id)
+            .map_err(|_| SamlRealmError::UserNotFound(user_id.to_string()))?;
+
+        // Get realm
+        let realm_model = self
+            .realm
+            .get_by_name(realm)
+            .await
+            .map_err(|e| SamlRealmError::Storage(e.to_string()))?
+            .ok_or_else(|| SamlRealmError::RealmNotFound(realm.to_string()))?;
+
+        // Get user
+        let user = self
+            .user
+            .get_by_id(realm_model.id, user_uuid)
+            .await
+            .map_err(|e| SamlRealmError::Storage(e.to_string()))?;
+
+        Ok(user.map(|u| SamlUser {
+            id: u.id.to_string(),
+            username: u.username,
+            email: u.email,
+            first_name: u.first_name,
+            last_name: u.last_name,
+            enabled: u.enabled,
+        }))
+    }
+
+    async fn get_user_attributes(
+        &self,
+        realm: &str,
+        user_id: &str,
+        _sp_entity_id: &str,
+    ) -> Result<Vec<(String, Vec<String>)>, SamlRealmError> {
+        // Get user first
+        let user = self
+            .get_user(realm, user_id)
+            .await?
+            .ok_or_else(|| SamlRealmError::UserNotFound(user_id.to_string()))?;
+
+        // Build basic attributes from user properties
+        let mut attributes = Vec::new();
+
+        if let Some(email) = &user.email {
+            attributes.push(("email".to_string(), vec![email.clone()]));
+        }
+        if let Some(first_name) = &user.first_name {
+            attributes.push(("firstName".to_string(), vec![first_name.clone()]));
+        }
+        if let Some(last_name) = &user.last_name {
+            attributes.push(("lastName".to_string(), vec![last_name.clone()]));
+        }
+
+        // In a real implementation, would also include:
+        // - Custom user attributes
+        // - Group memberships
+        // - Role assignments
+        // - Protocol mapper results
+
+        Ok(attributes)
     }
 }

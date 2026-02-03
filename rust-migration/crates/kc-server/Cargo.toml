@@ -24,6 +24,7 @@ kc-cache-redis = { workspace = true }
 kc-session = { workspace = true }
 kc-auth = { workspace = true }
 kc-protocol-oidc = { workspace = true }
+kc-protocol-saml = { workspace = true }
 kc-federation = { workspace = true }
 kc-federation-ldap = { workspace = true }
 kc-admin-api = { workspace = true }
