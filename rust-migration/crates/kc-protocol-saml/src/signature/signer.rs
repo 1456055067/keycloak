@@ -105,11 +105,6 @@ impl XmlSigner {
     }
 
     /// Signs raw data using the configured algorithm.
-    ///
-    /// # TODO
-    ///
-    /// This is a placeholder implementation. Full RSA/ECDSA signing
-    /// needs to be implemented using aws-lc-rs directly.
     fn sign_data(&self, data: &[u8]) -> SamlResult<Vec<u8>> {
         // Currently only RSA is implemented
         if !self.config.algorithm.is_rsa() {
@@ -118,14 +113,21 @@ impl XmlSigner {
             ));
         }
 
-        // TODO: Implement actual RSA signing using aws-lc-rs
-        // For now, return an error indicating this is not yet implemented
-        let _ = data;
-        let _ = &self.private_key_der;
+        // Map SAML signature algorithm to kc-crypto legacy algorithm
+        let legacy_alg = match self.config.algorithm {
+            SignatureAlgorithm::RsaSha256 => kc_crypto::LegacyRsaAlgorithm::Rs256,
+            SignatureAlgorithm::RsaSha384 => kc_crypto::LegacyRsaAlgorithm::Rs384,
+            SignatureAlgorithm::RsaSha512 => kc_crypto::LegacyRsaAlgorithm::Rs512,
+            _ => {
+                return Err(SamlError::SignatureCreation(format!(
+                    "Unsupported signature algorithm: {:?}",
+                    self.config.algorithm
+                )));
+            }
+        };
 
-        Err(SamlError::SignatureCreation(
-            "RSA signing not yet implemented - requires aws-lc-rs integration".to_string(),
-        ))
+        kc_crypto::rsa_sign_legacy(&self.private_key_der, data, legacy_alg)
+            .map_err(|e| SamlError::SignatureCreation(format!("RSA signing failed: {e}")))
     }
 
     /// Creates a detached signature for HTTP-Redirect binding.

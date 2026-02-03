@@ -38,6 +38,9 @@ base64 = { workspace = true }
 flate2 = "1.0"
 urlencoding = "2.1"
 
+# Cryptography
+x509-parser = { workspace = true }
+
 # Error handling
 thiserror = { workspace = true }
 

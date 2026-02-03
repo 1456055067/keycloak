@@ -20,11 +20,15 @@
 
 pub mod algorithm;
 pub mod hash;
+pub mod keys;
+pub mod legacy;
 pub mod random;
 pub mod signature;
 
 pub use algorithm::{HashAlgorithm, SignatureAlgorithm};
 pub use hash::{hmac_sha1, hmac_sha256, hmac_sha384, hmac_sha512, sha256, sha384, sha512};
+pub use keys::{EcdsaSigningKey, RsaSigningKey};
+pub use legacy::{rsa_sign_legacy, rsa_verify_legacy, LegacyRsaAlgorithm};
 pub use random::{
     generate_auth_code, generate_session_id, generate_token_id, random_alphanumeric,
     random_base64url, random_bytes, random_range,

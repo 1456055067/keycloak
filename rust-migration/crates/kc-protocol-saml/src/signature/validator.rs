@@ -198,18 +198,35 @@ impl XmlSignatureValidator {
         algorithm: SignatureAlgorithm,
     ) -> SamlResult<()> {
         // Extract public key from certificate
-        let _public_key = extract_public_key_from_cert(cert_der)?;
+        let public_key = extract_public_key_from_cert(cert_der)?;
 
-        // TODO: Implement actual signature verification using aws-lc-rs
-        // For now, return an error indicating this is not yet implemented
-        let _ = data;
-        let _ = signature;
-        let _ = algorithm;
+        // Map SAML signature algorithm to kc-crypto legacy algorithm
+        let legacy_alg = match algorithm {
+            SignatureAlgorithm::RsaSha256 => kc_crypto::LegacyRsaAlgorithm::Rs256,
+            SignatureAlgorithm::RsaSha384 => kc_crypto::LegacyRsaAlgorithm::Rs384,
+            SignatureAlgorithm::RsaSha512 => kc_crypto::LegacyRsaAlgorithm::Rs512,
+            SignatureAlgorithm::EcdsaSha256
+            | SignatureAlgorithm::EcdsaSha384
+            | SignatureAlgorithm::EcdsaSha512 => {
+                return Err(SamlError::SignatureInvalid(
+                    "ECDSA signature verification not yet implemented".to_string(),
+                ));
+            }
+            SignatureAlgorithm::RsaSha1 => {
+                return Err(SamlError::SignatureInvalid(
+                    "SHA-1 signature verification not supported".to_string(),
+                ));
+            }
+        };
 
-        Err(SamlError::SignatureInvalid(
-            "RSA signature verification not yet implemented - requires aws-lc-rs integration"
-                .to_string(),
-        ))
+        let valid = kc_crypto::rsa_verify_legacy(&public_key, data, signature, legacy_alg)
+            .map_err(|e| SamlError::SignatureInvalid(format!("Signature verification error: {e}")))?;
+
+        if valid {
+            Ok(())
+        } else {
+            Err(SamlError::SignatureInvalid("Signature verification failed".to_string()))
+        }
     }
 }
 
@@ -433,12 +450,14 @@ fn rebuild_signed_info(signature: &XmlSignature) -> String {
 
 /// Extracts the public key from an X.509 certificate.
 fn extract_public_key_from_cert(cert_der: &[u8]) -> SamlResult<Vec<u8>> {
-    // This is a simplified extraction - a full implementation would use
-    // proper ASN.1 parsing
+    use x509_parser::prelude::*;
 
-    // For now, return the certificate itself as a placeholder
-    // In production, use a proper X.509 parser like x509-parser
-    Ok(cert_der.to_vec())
+    let (_, cert) = X509Certificate::from_der(cert_der)
+        .map_err(|e| SamlError::Crypto(format!("Failed to parse certificate: {e}")))?;
+
+    // Get the SubjectPublicKeyInfo as raw DER bytes
+    let spki = cert.public_key().raw;
+    Ok(spki.to_vec())
 }
 
 #[cfg(test)]
