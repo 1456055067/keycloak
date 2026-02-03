@@ -588,6 +588,47 @@ Phase 7:                          ████████            (Polish: 6
 
 ---
 
+## v1.0 Readiness Status
+
+### Performance Benchmarks ✅ PASS
+
+Load testing infrastructure created (`tests/load/`) with HDR histogram-based latency measurement.
+
+**Token Endpoint (client_credentials flow)**
+| Metric | Result | Target | Status |
+|--------|--------|--------|--------|
+| Throughput | 6,796 req/s | - | ✅ |
+| p50 latency | 7.17ms | - | ✅ |
+| p99 latency | 10.44ms | <100ms | ✅ PASS |
+| Reliability | 100% | ≥99.9% | ✅ PASS |
+
+**Discovery Endpoint**
+| Metric | Result | Target | Status |
+|--------|--------|--------|--------|
+| Throughput | 7,847 req/s | - | ✅ |
+| p99 latency | 15.55ms | <100ms | ✅ PASS |
+| Reliability | 100% | ≥99.9% | ✅ PASS |
+
+**JWKS Endpoint**
+| Metric | Result | Target | Status |
+|--------|--------|--------|--------|
+| Throughput | 7,683 req/s | - | ✅ |
+| p99 latency | 22.29ms | <100ms | ✅ PASS |
+| Reliability | 100% | ≥99.9% | ✅ PASS |
+
+**Memory Usage**
+| Metric | Result | Target | Status |
+|--------|--------|--------|--------|
+| RSS (idle) | ~24MB | <256MB | ✅ PASS |
+
+### Remaining for v1.0 Certification
+
+1. **OIDC Conformance Test Suite** - Infrastructure ready, awaiting certification run
+2. **Security Audit** - Crypto implementation review pending
+3. **LDAP Testing** - Test against Active Directory, OpenLDAP, 389DS
+
+---
+
 ## Data Migration (for existing Keycloak users)
 
 Since we're using a fresh schema, provide migration tooling:

@@ -38,17 +38,18 @@ use uuid::Uuid;
 
 // Test EC P-384 keys for development (DO NOT USE IN PRODUCTION)
 // These should be loaded from secure storage in production
-const DEV_PRIVATE_KEY_PEM: &str = r#"-----BEGIN EC PRIVATE KEY-----
-MIGkAgEBBDCJcUzYqb6R3F1QvX2oMmC+1WQijzNjz3kqhMF7ZhQPZBz8PHXiVQzS
-NqvJT4Y+2XigBwYFK4EEACKhZANiAAQGzwS5QCkqK3QgjCM0x/SmXR5G3E1HVMen
-Dh88cSVYCl0Y8OMUNYJyUWCJlKwZrZGMH2+Y0x0QJKlTBBZqsPLnqhKQYZvCZXXp
-vKPd8VZKGrQPZRLKDlqCQB3Qz6PGXL0=
------END EC PRIVATE KEY-----"#;
+// Note: Private key must be in PKCS8 format for jsonwebtoken compatibility
+const DEV_PRIVATE_KEY_PEM: &str = r#"-----BEGIN PRIVATE KEY-----
+MIG2AgEAMBAGByqGSM49AgEGBSuBBAAiBIGeMIGbAgEBBDANRE/S4N0frTm7Y5DY
+Js6NXfniMwxQwUdj2/aFsMtcvRudGJFtTQLNeNJtECkq09ihZANiAARUjTxzIXP+
+WmaTpjnAM9d6OwB7a7BL/zJmvCrhACsl3Nwn/lfSjS3MGeScuVl37FArwp3j8n5Z
+Diu67wRSBon4QoMxDLfKMaZxLvDZ9wudR2vkVd8cc9zIhnAXIpM5J9I=
+-----END PRIVATE KEY-----"#;
 
 const DEV_PUBLIC_KEY_PEM: &str = r#"-----BEGIN PUBLIC KEY-----
-MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEBs8EuUApKit0IIwjNMf0pl0eRtxNR1TH
-pw4fPHElWApdGPDjFDWCclFgiZSsGa2RjB9vmNMdECSpUwQWarDy56oSkGGbwmV1
-6byj3fFWShq0D2USyg5agkAd0M+jxly9
+MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEVI08cyFz/lpmk6Y5wDPXejsAe2uwS/8y
+Zrwq4QArJdzcJ/5X0o0tzBnknLlZd+xQK8Kd4/J+WQ4ruu8EUgaJ+EKDMQy3yjGm
+cS7w2fcLnUdr5FXfHHPcyIZwFyKTOSfS
 -----END PUBLIC KEY-----"#;
 
 // Development self-signed certificate for SAML (DO NOT USE IN PRODUCTION)
