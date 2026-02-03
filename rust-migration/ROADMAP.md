@@ -428,6 +428,19 @@ let config = LdapConfig::builder()
   - Production Deployment Guide (docs/DEPLOYMENT.md)
   - NIST 800-53 Control Mapping (docs/NIST-800-53-CONTROLS.md)
 
+- ✅ **kc-cli Administration Tool**
+  - clap-based CLI with subcommands
+  - Realm CRUD (list, get, create, update, delete)
+  - User CRUD (list, get, create, update, delete, set-password)
+  - Client CRUD (list, get, create, delete, get-secret, regenerate-secret)
+  - Role CRUD (list, create, delete for realm and client roles)
+  - Group CRUD (list, create, delete, members)
+  - Export/Import (JSON format for realm configuration)
+  - Crypto utilities (decode-token, generate-secret, hash-password)
+  - Configuration management (~/.keycloak/kc.toml)
+  - Multiple output formats (table, JSON, YAML, quiet)
+  - Environment variable support (KC_SERVER_URL, KC_REALM)
+
 ---
 
 ## Post-v1.0: SAML Protocol (8-10 weeks) ✅ COMPLETE

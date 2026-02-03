@@ -15,17 +15,53 @@ path = "src/main.rs"
 [dependencies]
 kc-core = { workspace = true }
 kc-crypto = { workspace = true }
+kc-model = { workspace = true }
+kc-storage = { workspace = true }
+kc-storage-sql = { workspace = true }
+kc-admin-api = { workspace = true }
+kc-auth = { workspace = true }
+
+# CLI framework
+clap = { version = "4.5", features = ["derive", "env", "color"] }
 
 # Async
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
 
 # Serialization
 serde = { workspace = true }
 serde_json = { workspace = true }
 toml = { workspace = true }
 
+# HTTP client for API calls
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+
+# Table formatting
+tabled = "0.18"
+
+# Terminal colors
+colored = "3.0"
+
 # Error handling
 anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# UUID generation
+uuid = { workspace = true }
+
+# Time
+chrono = { workspace = true }
+
+# Password input
+rpassword = "7.3"
+
+# Base64
+base64 = { workspace = true }
+
+# URL encoding
+urlencoding = "2.1"
+
+# Home directory
+dirs-next = "2.0"
 
 [dev-dependencies]
 tokio-test = { workspace = true }

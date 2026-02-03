@@ -220,6 +220,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - tests/integration: SAML SSO login page tests
 - tests/integration: SAML login submission tests (success and invalid credentials)
 - tests/integration: SAML response signing verification tests
+- kc-cli: Complete CLI tool for administration
+- kc-cli: Realm management commands (list, get, create, update, delete)
+- kc-cli: User management commands (list, get, create, update, delete, set-password)
+- kc-cli: Client management commands (list, get, create, delete, get-secret, regenerate-secret)
+- kc-cli: Role management commands (list, create, delete) for realm and client roles
+- kc-cli: Group management commands (list, create, delete, members)
+- kc-cli: Export command for realm configuration to JSON
+- kc-cli: Import command for realm configuration from JSON
+- kc-cli: Crypto utilities (decode-token, generate-secret, hash-password)
+- kc-cli: Configuration management (show, set, init)
+- kc-cli: Server status check command
+- kc-cli: Table, JSON, YAML output formats
+- kc-cli: Environment variable configuration support (KC_SERVER_URL, KC_REALM, KC_DATABASE_URL)
 
 ### Security
 
