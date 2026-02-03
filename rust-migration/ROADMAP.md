@@ -446,9 +446,10 @@ let config = LdapConfig::builder()
 - ✅ **XML Signature module**
   - SignatureAlgorithm (RSA-SHA256/384/512, ECDSA-SHA256/384/512)
   - CanonicalizationAlgorithm (Exclusive C14N, C14N with/without comments)
-  - XmlSigner for signing SAML documents (placeholder for aws-lc-rs integration)
-  - XmlSignatureValidator for validating signatures (placeholder for aws-lc-rs integration)
+  - XmlSigner for signing SAML documents with full aws-lc-rs integration
+  - XmlSignatureValidator for validating signatures with x509-parser
   - SignatureConfig with algorithm and certificate options
+  - Legacy RSA signing module for SAML SHA-256 compatibility (clearly marked non-CNSA 2.0)
 
 - ✅ **SAML Bindings**
   - HTTP-POST binding encoder/decoder

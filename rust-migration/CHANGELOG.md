@@ -186,8 +186,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - kc-protocol-saml: Subject with SubjectConfirmation (bearer, holder-of-key, sender-vouches)
 - kc-protocol-saml: SignatureAlgorithm (RSA-SHA256/384/512, ECDSA-SHA256/384/512, RSA-SHA1 deprecated)
 - kc-protocol-saml: CanonicalizationAlgorithm (Exclusive C14N, C14N with/without comments)
-- kc-protocol-saml: XmlSigner for SAML document signing (placeholder for aws-lc-rs)
-- kc-protocol-saml: XmlSignatureValidator for signature validation (placeholder for aws-lc-rs)
+- kc-protocol-saml: XmlSigner for SAML document signing with full aws-lc-rs integration
+- kc-protocol-saml: XmlSignatureValidator for signature validation with x509-parser
+- kc-crypto: RsaSigningKey for CNSA 2.0 compliant RSA signing (RS384, RS512, PS384, PS512)
+- kc-crypto: EcdsaSigningKey for CNSA 2.0 compliant ECDSA signing (ES384, ES512)
+- kc-crypto: Legacy RSA signing module for SAML SHA-256 compatibility (rsa_sign_legacy, rsa_verify_legacy)
+- kc-crypto: LegacyRsaAlgorithm enum with clear CNSA 2.0 compliance indication
+- kc-crypto: ASN.1 parsing utilities for RSA/EC public key extraction from SubjectPublicKeyInfo
 - kc-protocol-saml: HTTP-POST binding encoder/decoder with base64 and HTML form generation
 - kc-protocol-saml: HTTP-Redirect binding with DEFLATE compression and URL encoding
 - kc-protocol-saml: SamlRealmProvider trait for pluggable realm data access
