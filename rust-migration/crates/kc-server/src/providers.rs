@@ -27,6 +27,7 @@ use kc_protocol_saml::endpoints::{
     AcsEndpoint, SamlRealmError, SamlRealmProvider, SamlUser, ServiceProviderConfig, SigningConfig,
     SlsEndpoint,
 };
+use kc_protocol_saml::signature::SignatureConfig as SamlSignatureConfig;
 use kc_storage::{ClientProvider, CredentialProvider, RealmProvider as StorageRealmProvider, UserProvider};
 use kc_storage_sql::providers::{
     PgClientProvider, PgCredentialProvider, PgRealmProvider, PgUserProvider,
@@ -49,6 +50,13 @@ MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEBs8EuUApKit0IIwjNMf0pl0eRtxNR1TH
 pw4fPHElWApdGPDjFDWCclFgiZSsGa2RjB9vmNMdECSpUwQWarDy56oSkGGbwmV1
 6byj3fFWShq0D2USyg5agkAd0M+jxly9
 -----END PUBLIC KEY-----"#;
+
+// Development self-signed certificate for SAML (DO NOT USE IN PRODUCTION)
+// This is a minimal DER-encoded X.509 v3 certificate for testing purposes
+// CN=keycloak-dev, O=Keycloak Development
+// Generated using a 2048-bit RSA key for compatibility (SAML often uses 2048-bit)
+const DEV_SAML_CERTIFICATE_DER: &[u8] = include_bytes!("dev_saml_cert.der");
+const DEV_SAML_PRIVATE_KEY_DER: &[u8] = include_bytes!("dev_saml_key.der");
 
 /// Aggregate storage providers backed by PostgreSQL.
 #[derive(Clone)]
@@ -697,15 +705,13 @@ impl SamlRealmProvider for StorageProviders {
     }
 
     async fn get_signing_config(&self, _realm: &str) -> Result<SigningConfig, SamlRealmError> {
-        // For development, use the same EC key as OIDC
-        // In production, SAML typically uses RSA keys for XML signatures
-        // This is a placeholder - real implementation would load realm-specific keys
-
-        // Convert the PEM to DER format (placeholder - needs proper implementation)
-        // For now, return an error since SAML signing requires RSA keys
-        Err(SamlRealmError::Internal(
-            "SAML signing keys not yet configured - RSA keys required".to_string(),
-        ))
+        // For development, use the embedded RSA key and certificate
+        // In production, this should load realm-specific signing keys
+        Ok(SigningConfig {
+            private_key_der: DEV_SAML_PRIVATE_KEY_DER.to_vec(),
+            certificate_der: DEV_SAML_CERTIFICATE_DER.to_vec(),
+            config: SamlSignatureConfig::default(),
+        })
     }
 
     async fn get_service_provider(

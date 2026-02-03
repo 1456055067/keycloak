@@ -7,3 +7,4 @@ mod common;
 mod auth_flows;
 mod admin_api;
 mod token_operations;
+mod saml_endpoints;
