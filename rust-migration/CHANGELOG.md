@@ -201,6 +201,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - kc-protocol-saml: IdP metadata endpoint handler
 - kc-protocol-saml: saml_router() function for complete SAML router configuration
 - kc-protocol-saml: 47 unit tests covering all SAML functionality
+- kc-server: Development RSA 3072-bit key and self-signed X.509 certificate for SAML signing
+- kc-server: SamlRealmProvider implementation with signing configuration
+- tests/integration: SAML endpoint integration tests (metadata, SSO, SLS, bindings, NameID formats)
 
 ### Security
 
