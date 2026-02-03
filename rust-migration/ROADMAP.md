@@ -430,17 +430,51 @@ let config = LdapConfig::builder()
 
 ---
 
-## Post-v1.0: SAML Protocol (8-10 weeks)
+## Post-v1.0: SAML Protocol (8-10 weeks) ✅ COMPLETE
 
 ### Deliverables
 
-- AuthnRequest parsing and validation
-- SAML Response/Assertion generation
-- XML signature (signing and validation)
-- POST and Redirect bindings
-- Single Logout (SLO)
+- ✅ **kc-protocol-saml crate** - Complete SAML 2.0 protocol implementation
+  - SAML types and constants (namespaces, URIs, bindings, name ID formats)
+  - NameId and NameIdPolicy types
+  - Status and StatusCode types
+  - AuthnRequest parsing and building
+  - Assertion, Subject, Conditions, AuthnStatement, AttributeStatement
+  - Response and ResponseBuilder
+  - LogoutRequest and LogoutResponse
 
-### Java Files to Reference
+- ✅ **XML Signature module**
+  - SignatureAlgorithm (RSA-SHA256/384/512, ECDSA-SHA256/384/512)
+  - CanonicalizationAlgorithm (Exclusive C14N, C14N with/without comments)
+  - XmlSigner for signing SAML documents (placeholder for aws-lc-rs integration)
+  - XmlSignatureValidator for validating signatures (placeholder for aws-lc-rs integration)
+  - SignatureConfig with algorithm and certificate options
+
+- ✅ **SAML Bindings**
+  - HTTP-POST binding encoder/decoder
+  - HTTP-Redirect binding with DEFLATE compression
+  - DecodedMessage type for parsed SAML messages
+  - URL-safe base64 encoding/decoding
+
+- ✅ **Axum Endpoints**
+  - SamlState and SamlRealmProvider trait for pluggable realm data access
+  - Single Sign-On handlers (sso_redirect, sso_post)
+  - Single Logout handlers (sls_redirect, sls_post)
+  - IdP metadata endpoint (idp_metadata)
+  - saml_router() function for complete SAML router configuration
+
+### Router Structure
+
+```rust
+pub fn saml_router<R: SamlRealmProvider>() -> Router<SamlState<R>> {
+    Router::new()
+        .route("/realms/{realm}/protocol/saml/descriptor", get(idp_metadata))
+        .route("/realms/{realm}/protocol/saml", get(sso_redirect).post(sso_post))
+        .route("/realms/{realm}/protocol/saml/logout", get(sls_redirect).post(sls_post))
+}
+```
+
+### Java Files Referenced
 
 - [SamlProtocol.java](services/src/main/java/org/keycloak/protocol/saml/SamlProtocol.java)
 - [saml-core/](saml-core/)

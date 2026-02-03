@@ -12,6 +12,7 @@ members = [
     "crates/kc-session",
     "crates/kc-auth",
     "crates/kc-protocol-oidc",
+    "crates/kc-protocol-saml",
     "crates/kc-federation",
     "crates/kc-federation-ldap",
     "crates/kc-admin-api",
@@ -114,6 +115,7 @@ kc-cache-redis = { path = "crates/kc-cache-redis" }
 kc-session = { path = "crates/kc-session" }
 kc-auth = { path = "crates/kc-auth" }
 kc-protocol-oidc = { path = "crates/kc-protocol-oidc" }
+kc-protocol-saml = { path = "crates/kc-protocol-saml" }
 kc-federation = { path = "crates/kc-federation" }
 kc-federation-ldap = { path = "crates/kc-federation-ldap" }
 kc-admin-api = { path = "crates/kc-admin-api" }

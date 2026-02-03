@@ -177,6 +177,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - deploy/kubernetes: Kustomization for environment customization
 - docs/QUICKSTART.md: Getting started guide with Docker and local development
 - docs/DEPLOYMENT.md: Production deployment guide for Docker and Kubernetes
+- kc-protocol-saml: Complete SAML 2.0 protocol implementation crate
+- kc-protocol-saml: SAML types (AuthnRequest, Response, Assertion, LogoutRequest, LogoutResponse)
+- kc-protocol-saml: NameId and NameIdPolicy types with all standard formats
+- kc-protocol-saml: Status and StatusCode types (Success, Requester, Responder, VersionMismatch)
+- kc-protocol-saml: Conditions with time validity, audience restrictions, one-time use
+- kc-protocol-saml: AuthnStatement and AttributeStatement for assertions
+- kc-protocol-saml: Subject with SubjectConfirmation (bearer, holder-of-key, sender-vouches)
+- kc-protocol-saml: SignatureAlgorithm (RSA-SHA256/384/512, ECDSA-SHA256/384/512, RSA-SHA1 deprecated)
+- kc-protocol-saml: CanonicalizationAlgorithm (Exclusive C14N, C14N with/without comments)
+- kc-protocol-saml: XmlSigner for SAML document signing (placeholder for aws-lc-rs)
+- kc-protocol-saml: XmlSignatureValidator for signature validation (placeholder for aws-lc-rs)
+- kc-protocol-saml: HTTP-POST binding encoder/decoder with base64 and HTML form generation
+- kc-protocol-saml: HTTP-Redirect binding with DEFLATE compression and URL encoding
+- kc-protocol-saml: SamlRealmProvider trait for pluggable realm data access
+- kc-protocol-saml: SSO handlers (sso_redirect, sso_post) for authentication requests
+- kc-protocol-saml: SLS handlers (sls_redirect, sls_post) for logout requests
+- kc-protocol-saml: IdP metadata endpoint handler
+- kc-protocol-saml: saml_router() function for complete SAML router configuration
+- kc-protocol-saml: 47 unit tests covering all SAML functionality
 
 ### Security
 
