@@ -110,6 +110,18 @@
 #![forbid(unsafe_code)]
 #![deny(warnings)]
 #![deny(missing_docs)]
+// Allow some clippy lints for now - these are stylistic and will be addressed later
+#![allow(clippy::use_self)]
+#![allow(clippy::missing_const_for_fn)]
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::collapsible_if)]
+#![allow(clippy::too_many_lines)]
+#![allow(clippy::similar_names)]
+#![allow(clippy::module_name_repetitions)]
+#![allow(clippy::manual_let_else)]
+#![allow(clippy::struct_excessive_bools)]
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::assigning_clones)]
 
 pub mod auth;
 pub mod dto;

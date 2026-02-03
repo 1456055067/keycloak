@@ -4,6 +4,7 @@
 
 #![forbid(unsafe_code)]
 #![deny(warnings)]
+#![allow(clippy::uninlined_format_args)]
 
 use clap::Parser;
 use kc_cli::{

@@ -105,7 +105,7 @@ pub fn rsa_sign_legacy(
 ///
 /// # Arguments
 ///
-/// * `public_key_der` - RSA public key in DER format (SubjectPublicKeyInfo)
+/// * `public_key_der` - RSA public key in DER format (`SubjectPublicKeyInfo`)
 /// * `data` - Original data that was signed
 /// * `signature` - Signature to verify
 /// * `algorithm` - Signature algorithm

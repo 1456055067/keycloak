@@ -55,8 +55,7 @@ impl RsaSigningKey {
     pub fn from_pkcs8(pkcs8_der: &[u8], algorithm: SignatureAlgorithm) -> Result<Self, SignatureError> {
         if !algorithm.is_rsa() {
             return Err(SignatureError::UnsupportedAlgorithm(format!(
-                "{:?} is not an RSA algorithm",
-                algorithm
+                "{algorithm:?} is not an RSA algorithm"
             )));
         }
 
@@ -65,6 +64,7 @@ impl RsaSigningKey {
 
         // Validate key size (CNSA 2.0 requires >= 3072 bits)
         let key_bits = key_pair.public_modulus_len() * 8;
+        #[allow(clippy::cast_possible_truncation)]
         SignatureAlgorithm::validate_rsa_key_size(key_bits as u32)
             .map_err(|e| SignatureError::InvalidKey(e.to_string()))?;
 
@@ -82,7 +82,7 @@ impl RsaSigningKey {
     ///
     /// # Arguments
     ///
-    /// * `der` - The DER-encoded RSA private key (RSAPrivateKey format)
+    /// * `der` - The DER-encoded RSA private key (`RSAPrivateKey` format)
     /// * `algorithm` - The signature algorithm (must be RSA-based)
     ///
     /// # Errors
@@ -91,8 +91,7 @@ impl RsaSigningKey {
     pub fn from_der(der: &[u8], algorithm: SignatureAlgorithm) -> Result<Self, SignatureError> {
         if !algorithm.is_rsa() {
             return Err(SignatureError::UnsupportedAlgorithm(format!(
-                "{:?} is not an RSA algorithm",
-                algorithm
+                "{algorithm:?} is not an RSA algorithm"
             )));
         }
 
@@ -101,6 +100,7 @@ impl RsaSigningKey {
 
         // Validate key size (CNSA 2.0 requires >= 3072 bits)
         let key_bits = key_pair.public_modulus_len() * 8;
+        #[allow(clippy::cast_possible_truncation)]
         SignatureAlgorithm::validate_rsa_key_size(key_bits as u32)
             .map_err(|e| SignatureError::InvalidKey(e.to_string()))?;
 
@@ -198,8 +198,7 @@ impl EcdsaSigningKey {
     pub fn from_pkcs8(pkcs8_der: &[u8], algorithm: SignatureAlgorithm) -> Result<Self, SignatureError> {
         if !algorithm.is_ecdsa() {
             return Err(SignatureError::UnsupportedAlgorithm(format!(
-                "{:?} is not an ECDSA algorithm",
-                algorithm
+                "{algorithm:?} is not an ECDSA algorithm"
             )));
         }
 
@@ -208,8 +207,7 @@ impl EcdsaSigningKey {
             SignatureAlgorithm::Es512 => &ECDSA_P521_SHA512_ASN1_SIGNING,
             _ => {
                 return Err(SignatureError::UnsupportedAlgorithm(format!(
-                    "{:?} not supported",
-                    algorithm
+                    "{algorithm:?} not supported"
                 )));
             }
         };
@@ -282,7 +280,7 @@ fn generate_key_id(public_key: &[u8]) -> String {
     base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&hash[..8])
 }
 
-/// Extracts RSA modulus (n) and exponent (e) from a SubjectPublicKeyInfo.
+/// Extracts RSA modulus (n) and exponent (e) from a `SubjectPublicKeyInfo`.
 fn extract_rsa_components(spki: &[u8]) -> Result<(Vec<u8>, Vec<u8>), SignatureError> {
     // SubjectPublicKeyInfo is ASN.1 DER encoded
     // We need to parse it to extract n and e
@@ -362,7 +360,7 @@ fn extract_rsa_components(spki: &[u8]) -> Result<(Vec<u8>, Vec<u8>), SignatureEr
     Ok((n, e))
 }
 
-/// Extracts EC x and y coordinates from a SubjectPublicKeyInfo.
+/// Extracts EC x and y coordinates from a `SubjectPublicKeyInfo`.
 fn extract_ec_components(
     spki: &[u8],
     algorithm: SignatureAlgorithm,
@@ -373,7 +371,7 @@ fn extract_ec_components(
     let (coord_size, crv) = match algorithm {
         SignatureAlgorithm::Es384 => (48, "P-384"),
         SignatureAlgorithm::Es512 => (66, "P-521"),
-        _ => return Err(SignatureError::UnsupportedAlgorithm(format!("{:?}", algorithm))),
+        _ => return Err(SignatureError::UnsupportedAlgorithm(format!("{algorithm:?}"))),
     };
 
     // Find the uncompressed point marker (0x04)
